@@ -1,0 +1,9 @@
+# do NOT ignore Dockerfile or docker-entrypoint.sh
+node_modules
+.next
+.next/cache
+.git
+.gitignore
+*.log
+.env
+.env.*

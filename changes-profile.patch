@@ -1,0 +1,312 @@
+diff --git a/prisma/schema.prisma b/prisma/schema.prisma
+--- a/prisma/schema.prisma
++++ b/prisma/schema.prisma
+@@
+ model User {
+   id           String   @id @default(cuid())
+   email        String   @unique
+   name         String?
+   image        String?
++  bio          String?
+   passwordHash String?
+   createdAt    DateTime @default(now())
+   updatedAt    DateTime @updatedAt
+   // relations...
+ }
+@@
+ model Person {
+   id           String   @id @default(cuid())
+   givenName    String
+   familyName   String?
+   display      String
+   birthDate    DateTime?
++  deathDate    DateTime?
+   deletedAt    DateTime?
+   linkedUserId String?
+   linkedUser   User?    @relation(fields: [linkedUserId], references: [id])
+   // relations...
+ }
+diff --git a/src/app/account/profile-client.tsx b/src/app/account/profile-client.tsx
+--- a/src/app/account/profile-client.tsx
++++ b/src/app/account/profile-client.tsx
+@@
+-import { useState } from "react";
++import { useState } from "react";
+ 
+ export default function ProfileClient({
+   initial,
+ }: {
+-  initial?: { name?: string | null; image?: string | null };
++  initial?: { name?: string | null; image?: string | null; bio?: string | null };
+ }) {
+   const [saving, setSaving] = useState(false);
+-  const [name, setName] = useState((initial?.name ?? "") as string);
++  const [name, setName] = useState((initial?.name ?? "") as string);
++  const [bio, setBio] = useState((initial?.bio ?? "") as string);
+@@
+   async function save() {
+     try {
+       setSaving(true);
+       const res = await fetch("/api/account/profile", {
+         method: "POST",
+         headers: { "Content-Type": "application/json" },
+-        body: JSON.stringify({ name }),
++        body: JSON.stringify({ name, bio }),
+       });
+       if (!res.ok) throw new Error(await res.text());
+     } finally {
+       setSaving(false);
+     }
+   }
+@@
+   return (
+     <div className="space-y-4">
+       <div>
+         <label className="block text-sm font-medium">Name</label>
+         <input
+           value={name}
+           onChange={(e) => setName(e.currentTarget.value)}
+           className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+         />
+       </div>
++      <div className="space-y-1">
++        <label className="block text-sm font-medium">Bio</label>
++        <textarea
++          value={bio}
++          onChange={(e) => setBio(e.currentTarget.value)}
++          rows={4}
++          maxLength={600}
++          className="w-full resize-y rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
++          placeholder="A short bio that shows on hover in the tree…"
++        />
++        <p className="text-xs text-zinc-500 dark:text-zinc-400">
++          Shown when someone hovers your name in the tree (if your account is linked to a person).
++        </p>
++      </div>
+       <div>
+         <button
+           onClick={save}
+           disabled={saving}
+           className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+         >
+           {saving ? "Saving…" : "Save"}
+         </button>
+       </div>
+     </div>
+   );
+ }
+ 
+diff --git a/src/app/account/page.tsx b/src/app/account/page.tsx
+--- a/src/app/account/page.tsx
++++ b/src/app/account/page.tsx
+@@
+ import { getServerSession } from "next-auth";
+ import { authOptions } from "@/lib/auth";
+ import ProfileClient from "./profile-client";
++import { prisma } from "@/lib/db";
+ 
+ export default async function AccountPage() {
+   const session = await getServerSession(authOptions);
+   if (!session?.user?.id) return null;
+-  return <ProfileClient initial={{ name: session.user.name ?? null, image: (session.user as any).image ?? null }} />;
++  // Load current bio from DB (session may not include bio)
++  const me = await prisma.user.findUnique({
++    where: { id: (session.user as any).id },
++    select: { name: true, image: true, bio: true },
++  });
++  return <ProfileClient initial={{ name: me?.name ?? null, image: me?.image ?? null, bio: me?.bio ?? null }} />;
+ }
+ 
+diff --git a/src/app/api/account/profile/route.ts b/src/app/api/account/profile/route.ts
+--- a/src/app/api/account/profile/route.ts
++++ b/src/app/api/account/profile/route.ts
+@@
+ import { NextResponse } from "next/server";
+ import { getServerSession } from "next-auth";
+ import { authOptions } from "@/lib/auth";
+ import { prisma } from "@/lib/db";
+ import { z } from "zod";
+ 
+-const schema = z.object({ name: z.string().min(1).max(120) });
++const schema = z.object({
++  name: z.string().min(1).max(120),
++  bio: z.string().max(600).optional().nullable(),
++});
+ 
+ export async function POST(req: Request) {
+   const session = await getServerSession(authOptions);
+   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+-  const body = await req.json().catch(() => ({}));
+-  const parsed = schema.safeParse(body);
++  const body = await req.json().catch(() => ({}));
++  const parsed = schema.safeParse(body);
+   if (!parsed.success) return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+-  const { name } = parsed.data;
++  const { name, bio } = parsed.data;
+   const userId = (session.user as any).id as string;
+   await prisma.user.update({
+     where: { id: userId },
+-    data: { name },
++    data: { name, bio: bio ?? null },
+   });
+   return NextResponse.json({ ok: true });
+ }
+ 
+diff --git a/src/app/api/family/graph/route.ts b/src/app/api/family/graph/route.ts
+--- a/src/app/api/family/graph/route.ts
++++ b/src/app/api/family/graph/route.ts
+@@
+-  const people = await prisma.person.findMany({
+-    where: { deletedAt: null },
+-    select: { id: true, display: true, linkedUserId: true /* ... */ },
+-  });
++  const people = await prisma.person.findMany({
++    where: { deletedAt: null },
++    select: {
++      id: true,
++      display: true,
++      linkedUserId: true,
++      linkedUser: { select: { bio: true } },
++      // ... your existing selections
++    },
++  });
+@@
+-  const nodes = people.map(p => ({ id: p.id, label: p.display /* ... */ }));
++  const nodes = people.map(p => ({
++    id: p.id,
++    label: p.display,
++    bio: p.linkedUser?.bio ?? null,
++    // ... existing fields
++  }));
+ 
+diff --git a/src/app/tree/tree-client.tsx b/src/app/tree/tree-client.tsx
+--- a/src/app/tree/tree-client.tsx
++++ b/src/app/tree/tree-client.tsx
+@@
+-// Existing hover UI…
+-// <div className="rounded-md border bg-white/95 p-2 text-sm shadow-lg dark:border-zinc-700 dark:bg-zinc-900/95">
+-//   <div className="font-medium">{node.label}</div>
+-// </div>
++// Example hover popover with bio support; ensure the node data includes `bio`
++// from the graph API above.
++function NodeHover({ node }: { node: { label: string; bio?: string | null } }) {
++  return (
++    <div className="max-w-xs rounded-md border bg-white/95 p-2 text-sm shadow-lg dark:border-zinc-700 dark:bg-zinc-900/95">
++      <div className="font-medium text-zinc-900 dark:text-zinc-100">{node.label}</div>
++      {node.bio ? (
++        <div className="mt-1 whitespace-pre-line text-xs text-zinc-600 dark:text-zinc-300">
++          {node.bio}
++        </div>
++      ) : null}
++    </div>
++  );
++}
+ 
+diff --git a/src/app/family/manage-member.tsx b/src/app/family/manage-member.tsx
+--- a/src/app/family/manage-member.tsx
++++ b/src/app/family/manage-member.tsx
+@@
+-import { useState } from "react";
++import { useState } from "react";
+@@
+-  const [birthDate, setBirthDate] = useState<string>("");
++  const [birthDate, setBirthDate] = useState<string>("");
++  const [deathDate, setDeathDate] = useState<string>("");
+@@
+   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+     <div>
+       <label className="block text-sm font-medium">Birth date</label>
+       <input
+         type="date"
+         value={birthDate}
+         onChange={(e) => setBirthDate(e.currentTarget.value)}
+         className="mt-1 w-full rounded-md border px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+       />
+     </div>
++    <div>
++      <label className="block text-sm font-medium">Death date</label>
++      <input
++        type="date"
++        value={deathDate}
++        onChange={(e) => setDeathDate(e.currentTarget.value)}
++        className="mt-1 w-full rounded-md border px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
++      />
++    </div>
+   </div>
+@@
+-  const payload = { givenName, familyName, birthDate: birthDate || null /* ... */ };
++  const payload = {
++    givenName,
++    familyName,
++    birthDate: birthDate || null,
++    deathDate: deathDate || null,
++    // ...other fields
++  };
+ 
+diff --git a/src/app/api/family/person/route.ts b/src/app/api/family/person/route.ts
+--- a/src/app/api/family/person/route.ts
++++ b/src/app/api/family/person/route.ts
+@@
+-import { z } from "zod";
++import { z } from "zod";
+@@
+-const schema = z.object({
+-  givenName: z.string().min(1),
+-  familyName: z.string().optional().nullable(),
+-  birthDate: z.string().date().optional().nullable().or(z.literal("")),
+-});
++const schema = z.object({
++  givenName: z.string().min(1),
++  familyName: z.string().optional().nullable(),
++  birthDate: z.union([z.string().min(1), z.literal("")]).optional().nullable(),
++  deathDate: z.union([z.string().min(1), z.literal("")]).optional().nullable(),
++});
+@@
+-  const { givenName, familyName, birthDate } = parsed.data;
++  const { givenName, familyName, birthDate, deathDate } = parsed.data;
+   const person = await prisma.person.create({
+     data: {
+       givenName,
+       familyName: familyName ?? null,
+-      birthDate: birthDate ? new Date(birthDate) : null,
++      birthDate: birthDate ? new Date(birthDate) : null,
++      deathDate: deathDate ? new Date(deathDate) : null,
+       // ...
+     },
+   });
+   return NextResponse.json({ ok: true, person });
+ }
+ 
+diff --git a/src/app/api/family/person/[id]/route.ts b/src/app/api/family/person/[id]/route.ts
+--- a/src/app/api/family/person/[id]/route.ts
++++ b/src/app/api/family/person/[id]/route.ts
+@@
+-import { z } from "zod";
++import { z } from "zod";
+@@
+-const schema = z.object({
+-  givenName: z.string().min(1).optional(),
+-  familyName: z.string().optional().nullable(),
+-  birthDate: z.string().date().optional().nullable().or(z.literal("")),
+-});
++const schema = z.object({
++  givenName: z.string().min(1).optional(),
++  familyName: z.string().optional().nullable(),
++  birthDate: z.union([z.string().min(1), z.literal("")]).optional().nullable(),
++  deathDate: z.union([z.string().min(1), z.literal("")]).optional().nullable(),
++});
+@@
+-  const { givenName, familyName, birthDate } = parsed.data;
++  const { givenName, familyName, birthDate, deathDate } = parsed.data;
+   const updated = await prisma.person.update({
+     where: { id },
+     data: {
+       ...(givenName !== undefined ? { givenName } : {}),
+       ...(familyName !== undefined ? { familyName } : {}),
+-      ...(birthDate !== undefined ? { birthDate: birthDate ? new Date(birthDate) : null } : {}),
++      ...(birthDate !== undefined ? { birthDate: birthDate ? new Date(birthDate) : null } : {}),
++      ...(deathDate !== undefined ? { deathDate: deathDate ? new Date(deathDate) : null } : {}),
+     },
+   });
+   return NextResponse.json({ ok: true, person: updated });
+ }

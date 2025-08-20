@@ -1,0 +1,306 @@
+@import "tailwindcss";
+
+/* ========== THEME (Warm/Earthy + Amber) ========== */
+:root {
+  --background: #FAF7F2;          /* linen */
+  --foreground: #1f2937;          /* slate-800 */
+  --card: #ffffff;
+  --card-foreground: #1f2937;
+
+  --muted: #6b7280;               /* gray-500 */
+  --muted-foreground: #6b7280;
+
+  --border: #e7e5e4;              /* stone-200 (warmer than gray-200) */
+  --ring: #b45309;                /* amber-700 */
+
+  --primary: #5c3d32;             /* rich brown */
+  --primary-foreground: #ffffff;
+
+  --accent: #f59e0b;              /* amber-500 */
+  --accent-foreground: #1f2937;   /* dark text on amber */
+
+  --header-link: rgba(255, 255, 255, 0.75);
+  --header-link-hover: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #12100e;        /* very dark warm */
+    --foreground: #e5e7eb;        /* gray-200 */
+
+    --card: #1c1917;              /* stone-900 */
+    --card-foreground: #e5e7eb;
+
+    --muted: #a8a29e;             /* stone-400 */
+    --muted-foreground: #a8a29e;
+
+    --border: #292524;            /* stone-800 */
+    --ring: #f59e0b;              /* amber-500 */
+
+    --primary: #7b5243;           /* lighter brown for dark bg */
+    --primary-foreground: #ffffff;
+
+    --accent: #f59e0b;            /* amber-500 */
+    --accent-foreground: #0b0b0b;
+  }
+}
+
+/* ===== THEME: Minimal Slate + Royal Blue ===== */
+:root {
+  --background: #f8fafc;          /* slate-50 */
+  --foreground: #0f172a;          /* slate-900 */
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+
+  --muted: #64748b;               /* slate-500/600 */
+  --muted-foreground: #64748b;
+
+  --border: #e2e8f0;              /* slate-200 */
+  --ring: #3b82f6;                /* blue-500 */
+
+  --primary: #1d4ed8;             /* blue-700 */
+  --primary-foreground: #ffffff;
+
+  --accent: #8b5cf6;              /* violet-500 */
+  --accent-foreground: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0b1220;        /* deep indigo/blue-black */
+    --foreground: #e5e7eb;        /* gray-200 */
+
+    --card: #0f172a;              /* slate-900 */
+    --card-foreground: #e5e7eb;
+
+    --muted: #94a3b8;             /* slate-400 */
+    --muted-foreground: #94a3b8;
+
+    --border: #1f2937;            /* slate-800 */
+    --ring: #60a5fa;              /* blue-400 */
+
+    --primary: #3b82f6;           /* blue-500 (brighter for dark) */
+    --primary-foreground: #0b1220;
+
+    --accent: #a78bfa;            /* violet-400 */
+    --accent-foreground: #0b1220;
+  }
+}
+
+/* optional: slightly stronger hover on primary buttons */
+.btn-primary:hover { filter: brightness(0.93); }
+
+/* ========== BASE ========== */
+:root { color-scheme: light dark; }
+
+/* Watermark vars (SVG) */
+:root {
+  --wm-size: 90vw;
+  --wm-y: 2vh;               /* vertical position */
+  --wm-opacity: 0.08;         /* light strength */
+}
+@media (prefers-color-scheme: dark) {
+  :root { --wm-opacity: 0.04; } /* a touch brighter on dark */
+}
+
+html, body { min-height: 100%; }
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  position: relative; /* allow ::before overlay */
+}
+
+/* Selection & focus polish */
+::selection { background: color-mix(in oklab, var(--primary) 25%, transparent); color: var(--foreground); }
+
+/* === Page watermark using SVG mask === */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+
+  /* tint from theme foreground, only shape shows via mask */
+  background: var(--foreground);
+  -webkit-mask: url("/whanau-mark.svg") center var(--wm-y) / var(--wm-size) auto no-repeat;
+          mask: url("/whanau-mark.svg") center var(--wm-y) / var(--wm-size) auto no-repeat;
+
+  opacity: var(--wm-opacity);
+}
+
+/* keep content above watermark */
+header, main, footer { position: relative; z-index: 1; }
+
+/* ========== UI HELPERS (Tailwind + CSS vars) ========== */
+.card {
+  background-color: var(--card);
+  color: var(--card-foreground);
+  border-color: var(--border);
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 1rem; /* rounded-2xl */
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1); /* shadow-md */
+}
+
+.btn {
+  border-color: var(--border);
+  color: var(--foreground);
+  background-color: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.75rem; /* rounded-xl */
+    padding-left: 1rem;     /* px-4 */
+    padding-right: 1rem;    /* px-4 */
+    padding-top: 0.5rem;    /* py-2 */
+    padding-bottom: 0.5rem; /* py-2 */
+    font-weight: 500;       /* font-medium */
+    transition: background-color 0.2s, opacity 0.2s;
+  }
+  .btn:hover {
+    background-color: rgba(245, 245, 245, 0.7); /* neutral-100/70 */
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  border-color: var(--primary);
+  border-width: 1px;
+  border-style: solid;
+  transition: opacity 0.2s;
+}
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+.btn-accent {
+  background-color: var(--accent);
+  color: var(--accent-foreground);
+  border-color: var(--accent);
+  border-width: 1px;
+  border-style: solid;
+  transition: opacity 0.2s;
+}
+.btn-accent:hover {
+  opacity: 0.9;
+}
+
+.input {
+  background-color: var(--card);
+  color: var(--foreground);
+  border-color: var(--border);
+  width: 100%;
+  border-radius: 0.75rem; /* rounded-xl */
+  border-width: 1px;
+  border-style: solid;
+  padding-left: 0.75rem;  /* px-3 */
+  padding-right: 0.75rem; /* px-3 */
+  padding-top: 0.5rem;    /* py-2 */
+  padding-bottom: 0.5rem; /* py-2 */
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+  outline: none;
+}
+.input:focus {
+  /* Tailwind rings don’t accept CSS variables via @apply, so use raw CSS */
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+/* Links */
+a { color: var(--primary); }
+a:hover { opacity: 0.9; }
+
+/* Optional elevated surfaces */
+.elev-1 { box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 1px 4px rgba(0,0,0,.04); }
+.elev-2 { box-shadow: 0 10px 30px rgba(0,0,0,.12); }
+
+/* put in globals.css */
+.header-nav .btn {
+  color: #fff;
+  border-color: rgba(255,255,255,.18);
+}
+.header-nav .btn:hover { background-color: rgba(255,255,255,.08); }
+
+.brand-title {
+  font-family: var(--font-brand), ui-serif, Georgia, Cambria, "Times New Roman", serif;
+  font-weight: 700;
+  font-size: clamp(1.25rem, 2.2vw, 2rem);
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.92);     /* slightly transparent */
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
+  padding: 0.25rem 0.25rem;
+  border-radius: 0.75rem;
+  transition: color .15s ease, opacity .15s ease;
+}
+.brand-title:hover { color: #fff; }
+
+/* Smaller, elegant nav links with animated underline */
+.header-nav .nav-link {
+  font-size: 0.85rem;                  /* smaller link text */
+  color: var(--header-link);
+  padding: 0.375rem 0.5rem;
+  border-radius: 0.6rem;
+  position: relative;
+  transition: color .15s ease, background-color .15s ease;
+}
+.header-nav .nav-link:hover { color: var(--header-link-hover); }
+
+/* accent underline that animates in */
+.header-nav .nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0.5rem; right: 0.5rem; bottom: 0.35rem;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent), transparent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform .2s ease;
+  opacity: .3;
+}
+.header-nav .nav-link:hover::after { transform: scaleX(1); }
+
+/* Make any header buttons (e.g., Sign in) match size */
+.header-nav .btn { font-size: 0.85rem; }
+
+/* React Flow: allow hover cards to escape node bounds & stack above */
+.react-flow,
+.react-flow__renderer,
+.react-flow__nodes,
+.react-flow__node { overflow: visible; }
+
+.react-flow__node:hover { z-index: 1000; }
+
+/* Utility for our hover cards */
+.rf-hover-card {
+  pointer-events: none;   /* let mouse pass through */
+  z-index: 9999;          /* above nodes/edges */
+}
+
+/* Remove default marker on <summary> */
+.header-nav summary::-webkit-details-marker { display: none; }
+
+/* Ensure dropdown stays within header z-layer */
+.header-nav details { position: relative; }
+
+/* Reuse your header look for the trigger via .nav-link on <summary> */
+.header-nav summary.nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+}
+/* globals.css, near your header styles */
+.header-nav { position: relative; z-index: 12000; }
+
+.dropdown-item {
+  display: block;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.9rem;
+  color: rgba(255,255,255,.92);
+  transition: background-color .15s ease, color .15s ease;
+}
+.dropdown-item:hover {
+  background: rgba(255,255,255,.08);
+  color: #fff;
+}
