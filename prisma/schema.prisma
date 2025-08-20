@@ -8,26 +8,6 @@ enum Role {
   MEMBER
 }
 
-model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  passwordHash  String? // for credentials login
-  bio          String?
-  role     Role    @default(MEMBER)
-  personId String? @unique
-  person   Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
-  accounts Account[]
-  sessions Session[]
-  gallery  GalleryItem[]
-  rsvps    RSVP[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  Album     Album[]
-}
-
 model GalleryItem {
   id          String      @id @default(cuid())
   userId      String
@@ -138,22 +118,46 @@ enum ParentKind {
   WHANGAI
 }
 
+model User {
+  id            String        @id @default(cuid())
+  name          String?
+  email         String?       @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+  bio           String?
+  role          Role          @default(MEMBER)
+  personId      String?       @unique
+  person        Person?       @relation("UserPerson", fields: [personId], references: [id], onDelete: SetNull)
+  peopleCreated Person[]      @relation("PersonCreatedBy")
+  accounts      Account[]
+  sessions      Session[]
+  gallery       GalleryItem[]
+  rsvps         RSVP[]
+  Album         Album[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
 model Person {
-  id        String    @id @default(cuid())
-  firstName String
-  lastName  String
-  gender    Gender    @default(UNKNOWN)
-  birthDate DateTime?
-  deathDate DateTime?
-  notes     String?
-  imageUrl  String?
-  locked    Boolean   @default(false)
-  deletedAt DateTime?
-  parents  ParentChild[] @relation("PC_child")
-  children ParentChild[] @relation("PC_parent")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  User      User?
+  id          String        @id @default(cuid())
+  firstName   String
+  lastName    String
+  displayName String?
+  gender      Gender        @default(UNKNOWN)
+  birthDate   DateTime?
+  deathDate   DateTime?
+  notes       String?
+  imageUrl    String?
+  locked      Boolean       @default(false)
+  createdById String
+  createdBy   User          @relation("PersonCreatedBy", fields: [createdById], references: [id])
+  deletedAt   DateTime?
+  parents     ParentChild[] @relation("PC_child")
+  children    ParentChild[] @relation("PC_parent")
+  user        User?         @relation("UserPerson")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
   @@index([lastName, firstName])
   @@index([deletedAt])
@@ -166,12 +170,12 @@ model ParentChild {
   parent    Person     @relation("PC_parent", fields: [parentId], references: [id], onDelete: Cascade)
   child     Person     @relation("PC_child", fields: [childId], references: [id], onDelete: Cascade)
   role      ParentRole
-  kind      ParentKind @default(BIOLOGICAL)  // <-- NEW
+  kind      ParentKind @default(BIOLOGICAL) // <-- NEW
   createdAt DateTime   @default(now())
 
   // prevent duplicates
-  @@unique([parentId, childId, kind])     // allow same parent twice only if kind differs
-  @@unique([childId, kind, role])         // <= ensures at most one MOTHER/FATHER per kind
+  @@unique([parentId, childId, kind]) // allow same parent twice only if kind differs
+  @@unique([childId, kind, role]) // <= ensures at most one MOTHER/FATHER per kind
   @@index([parentId])
   @@index([childId])
 }
@@ -179,6 +183,7 @@ model ParentChild {
 enum ParentRole {
   MOTHER
   FATHER
+  PARENT
 }
 
 model AlbumItem {

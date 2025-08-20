@@ -1,69 +1,68 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { useState } from "react";
+import PersonPicker, { PersonOption } from "@/components/ui/person-picker";
 
-type Option = { id: string; label: string };
-
-export default function LinkToPerson() {
-  const [options, setOptions] = useState<Option[]>([]);
-  const [personId, setPersonId] = useState("");
-  const [current, setCurrent] = useState<string | null>(null);
+export default function LinkToPerson({
+  current,
+}: {
+  current: { id: string; displayName: string } | null;
+}) {
+  const [pick, setPick] = useState<PersonOption | null>(null);
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    (async () => {
-      const [g, me] = await Promise.all([
-        fetch("/api/family/graph", { cache: "no-store" }).then(r => r.json()),
-        fetch("/api/family/me", { cache: "no-store" }).then(r => r.json()),
-      ]);
-      setOptions((g.nodes as any[]).map(n => ({ id: n.id, label: n.label })));
-      if (me?.personId) { setCurrent(me.personId); setPersonId(me.personId); }
-    })();
-  }, []);
+  const [msg, setMsg] = useState<string | null>(null);
 
   async function link() {
-    setBusy(true);
-    try {
-      const res = await fetch("/api/account/link-person", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ personId }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Failed");
-      setCurrent(personId);
-      toast.success("Linked!");
-    } catch (e: any) {
-      toast.error(e.message || "Failed to link");
-    } finally {
-      setBusy(false);
-    }
+    if (!pick) return;
+    setBusy(true); setMsg(null);
+    const r = await fetch("/api/account/person", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ personId: pick.id }),
+    });
+    setBusy(false);
+    setMsg(r.ok ? "Linked!" : "Failed to link (check permissions)");
+    if (r.ok) location.reload();
   }
 
-  async function useAvatar() {
-    const res = await fetch("/api/account/use-person-avatar", { method: "POST" });
-    const data = await res.json();
-    if (res.ok) toast.success("Avatar applied to person");
-    else toast.error(data?.error || "Failed to apply avatar");
+  async function unlink() {
+    setBusy(true); setMsg(null);
+    const r = await fetch("/api/account/person", { method: "DELETE" });
+    setBusy(false);
+    setMsg(r.ok ? "Unlinked" : "Failed to unlink");
+    if (r.ok) location.reload();
   }
 
   return (
-    <div className="space-y-3">
-      <div className="text-sm text-neutral-600">
-        Current: {current ? <code className="text-neutral-800">{current}</code> : <em>not linked</em>}
+    <div className="grid gap-3">
+      <div className="flex items-center justify-between">
+        {current ? (
+          <div className="text-sm text-neutral-700">
+            Currently linked to: <strong>{current.displayName}</strong>
+          </div>
+        ) : (
+          <div className="text-sm text-neutral-500">Not linked yet.</div>
+        )}
+        {current && (
+          <button className="btn" onClick={unlink} disabled={busy}>
+            Unlink
+          </button>
+        )}
       </div>
-      <div className="flex gap-2 flex-wrap">
-        <select className="input min-w-56" value={personId} onChange={(e) => setPersonId(e.target.value)}>
-          <option value="">— Select —</option>
-          {options.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
-        </select>
-        <button className="btn btn-primary" onClick={link} disabled={!personId || busy}>
-          {busy ? "Linking…" : "Link"}
+
+      <PersonPicker
+        label="Link existing member"
+        value={pick}
+        onChange={setPick}
+        placeholder="Type a name…"
+        allowCreate={false} // keep creation in MemberForm; toggle true if you want inline create here too
+      />
+
+      <div className="flex gap-2">
+        <button className="btn btn-primary" onClick={link} disabled={!pick || busy}>
+          Link
         </button>
-        <button className="btn" onClick={useAvatar} disabled={!current}>
-          Use my profile photo
-        </button>
+        {msg && <div className="text-sm text-neutral-600">{msg}</div>}
       </div>
     </div>
   );

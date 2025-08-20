@@ -11,7 +11,7 @@ export default async function Home() {
       <div className="card p-8">
         <h1 className="text-3xl font-bold mb-3">Kia ora — welcome to our reunion!</h1>
         <p className="text-neutral-600 leading-relaxed">
-          Nau mai, haere mai ki <strong>Te Awhina Marae Whānau Reunion</strong> 2025. 
+          Nau mai, haere mai ki <strong>Rangi and Rarati Hanara Reunion</strong> 2025. 
           A time to reconnect, celebrate whakapapa, and create new memories together.
         </p>
 
