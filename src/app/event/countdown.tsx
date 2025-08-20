@@ -20,7 +20,7 @@ export default function Countdown({ to }: { to: string }) {
         ["Min", minutes],
         ["Sec", seconds],
       ].map(([label, val]) => (
-        <div key={label} className="card px-4 py-3">
+        <div key={label} className="card px-3 py-4">
           <div className="text-2xl font-semibold tabular-nums">{val as number}</div>
           <div className="text-xs text-neutral-500">{label}</div>
         </div>

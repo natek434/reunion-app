@@ -172,9 +172,6 @@ header, main, footer { position: relative; z-index: 1; }
   border-style: solid;
   transition: opacity 0.2s;
 }
-.btn-primary:hover {
-  opacity: 0.9;
-}
 
 .btn-accent {
   background-color: var(--accent);
@@ -214,7 +211,6 @@ a:hover { opacity: 0.9; }
 
 /* Optional elevated surfaces */
 .elev-1 { box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 1px 4px rgba(0,0,0,.04); }
-.elev-2 { box-shadow: 0 10px 30px rgba(0,0,0,.12); }
 
 /* put in globals.css */
 .header-nav .btn {
@@ -303,4 +299,86 @@ a:hover { opacity: 0.9; }
 .dropdown-item:hover {
   background: rgba(255,255,255,.08);
   color: #fff;
+}
+
+/* === Responsive improvements ===
+ *
+ * On tablet-sized screens and smaller, the header navigation needs to wrap
+ * gracefully and provide sufficient padding. On very small screens (mobile),
+ * the nav items stack vertically and span the full width so that
+ * links and buttons are easy to tap. Horizontal padding keeps content
+ * away from the screen edges.
+ */
+
+@media (max-width: 768px) {
+  .header-nav .nav-link { font-size: 0.95rem; }
+}
+
+/* Make the container breathe a bit on phones */
+@media (max-width: 640px) {
+  .container { padding-inline: 1rem; }
+}
+
+/* --- Genealogy Tree styling -------------------------------------------- */
+
+/* Gender palette (tuned for light/dark) */
+:root {
+  --gender-male:    #3b82f6; /* blue-500 */
+  --gender-female:  #ec4899; /* pink-500 */
+  --gender-other:   #a78bfa; /* violet-400/500 */
+  --gender-unknown: #94a3b8; /* slate-400 */
+
+  --edge-biological: #94a3b8; /* slate-400 */
+  --edge-whangai:    #f59e0b; /* amber-500 */
+  --edge-highlight:  #3b82f6; /* blue-500 */
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --gender-male:    #60a5fa; /* blue-400 */
+    --gender-female:  #f472b6; /* pink-400 */
+    --gender-other:   #c4b5fd; /* violet-300 */
+    --gender-unknown: #a1a1aa; /* zinc-400 */
+
+    --edge-biological: #a1a1aa; /* zinc-400 */
+    --edge-whangai:    #f59e0b; /* amber-500 */
+    --edge-highlight:  #60a5fa; /* blue-400 */
+  }
+}
+
+/* Person cards: thin colored rail + avatar ring driven by --accent */
+.person-card {
+  position: relative;
+  background: var(--card);
+  border-color: var(--border);
+}
+.person-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  border-radius: 12px 0 0 12px;
+  background: var(--accent, var(--gender-unknown));
+}
+.person-card[data-gender="MALE"]    { --accent: var(--gender-male); }
+.person-card[data-gender="FEMALE"]  { --accent: var(--gender-female); }
+.person-card[data-gender="OTHER"]   { --accent: var(--gender-other); }
+.person-card[data-gender="UNKNOWN"] { --accent: var(--gender-unknown); }
+
+.person-avatar {
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent, var(--gender-unknown)) 55%, transparent);
+  border-color: color-mix(in oklab, var(--accent, var(--gender-unknown)) 35%, var(--border));
+}
+
+/* A tiny lock badge if needed */
+.person-lock {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 9999px;
+  background: color-mix(in oklab, var(--accent, var(--gender-unknown)) 16%, transparent);
+  color: color-mix(in oklab, var(--accent, var(--gender-unknown)) 90%, #222);
+}
+
+/* (Optional) legend dots */
+.legend-dot {
+  width: 10px; height: 10px; border-radius: 9999px; display: inline-block;
 }

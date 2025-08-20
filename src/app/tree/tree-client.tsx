@@ -43,8 +43,26 @@ type ViewKind = "BIOLOGICAL" | "WHANGAI" | "ALL";
 type ViewMode = "GRAPH" | "ANCESTORS";
 type Side = "MATERNAL" | "PATERNAL" | "BOTH";
 
+/* ---------- Node sizing ---------- */
 const NODE_W = 220;
-const NODE_H = 68;
+const NODE_H = 72;
+
+/* ---------- Palette (light/dark friendly) ---------- */
+const COLOR = {
+  gender: {
+    MALE: "#3b82f6",      // blue-500
+    FEMALE: "#ec4899",    // pink-500
+    OTHER: "#a78bfa",     // violet-400/500
+    UNKNOWN: "#94a3b8",   // slate-400
+  },
+  edge: {
+    biological: "#94a3b8",
+    whangai: "#f59e0b",
+    highlight: "#3b82f6",
+  },
+  chipLockBg: (accent: string) => `color-mix(in oklab, ${accent} 16%, transparent)`,
+  chipLockFg: (accent: string) => `color-mix(in oklab, ${accent} 90%, #111)`,
+};
 
 /* ---------- Hover card rendered in a portal ---------- */
 function HoverCardPortal({
@@ -75,11 +93,11 @@ function HoverCardPortal({
         {data.label} {data.isMe ? <span className="text-xs text-blue-600/80">(me)</span> : null}
       </div>
       <dl className="space-y-1 text-[12px]" style={{ color: "var(--muted-foreground)" }}>
-        {data.gender && (
-          <div className="flex justify-between"><dt>Gender</dt><dd>{data.gender}</dd></div>
-        )}
         {data.birthDate && (
-          <div className="flex justify-between"><dt>Born</dt><dd>{new Date(data.birthDate).toLocaleDateString()}</dd></div>
+          <div className="flex justify-between">
+            <dt>Born</dt>
+            <dd>{new Date(data.birthDate).toLocaleDateString()}</dd>
+          </div>
         )}
         {data.notes && <div className="mt-1">{data.notes}</div>}
       </dl>
@@ -88,11 +106,27 @@ function HoverCardPortal({
   );
 }
 
-/* ---------- Custom node ---------- */
+/* ---------- Gendered person node ---------- */
 function PersonNode({ data }: { data: GNode & { isMe?: boolean; highlighted?: boolean } }) {
   const initial = (data.label || "?").charAt(0).toUpperCase();
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [hoverRect, setHoverRect] = useState<DOMRect | null>(null);
+
+  const accent =
+    COLOR.gender[(data.gender || "UNKNOWN") as keyof typeof COLOR.gender] || COLOR.gender.UNKNOWN;
+
+  // Show birthdate if present, otherwise a notes snippet
+  const dob = data.birthDate ? new Date(data.birthDate).toLocaleDateString() : null;
+  const subline = dob ?? (data.notes || "");
+
+  const borderColor =
+    data.highlighted ? COLOR.edge.highlight : data.isMe ? "#22c55e" : data.locked ? "#f59e0b" : "var(--border)";
+  const ringShadow =
+    data.highlighted
+      ? "0 0 0 2px rgba(59,130,246,.35)"
+      : data.isMe
+      ? "0 0 0 2px rgba(34,197,94,.35)"
+      : undefined;
 
   return (
     <>
@@ -103,41 +137,80 @@ function PersonNode({ data }: { data: GNode & { isMe?: boolean; highlighted?: bo
           width: NODE_W,
           height: NODE_H,
           background: "var(--card)",
-          borderColor: data.highlighted
-            ? "#3b82f6"
-            : data.isMe
-            ? "#22c55e"
-            : data.locked
-            ? "#f59e0b"
-            : "var(--border)",
-          boxShadow: data.highlighted
-            ? "0 0 0 2px rgba(59,130,246,.35)"
-            : data.isMe
-            ? "0 0 0 2px rgba(34,197,94,.35)"
-            : undefined,
+          borderColor,
+          boxShadow: ringShadow,
           display: "flex",
           alignItems: "center",
           gap: 12,
           padding: 10,
+          position: "relative",
         }}
         onMouseEnter={() => setHoverRect(wrapRef.current?.getBoundingClientRect() || null)}
         onMouseLeave={() => setHoverRect(null)}
       >
-        <Handle id="from-parent" type="target" position={Position.Top} style={{ background: "#64748b" }} />
-        <Handle id="to-child"   type="source" position={Position.Bottom} style={{ background: "#64748b" }} />
+        {/* gender accent rail */}
+        <span
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: "0 auto 0 0",
+            width: 4,
+            borderRadius: "12px 0 0 12px",
+            background: accent,
+          }}
+        />
 
+        {/* reactflow handles */}
+        <Handle id="from-parent" type="target" position={Position.Top} style={{ background: "#64748b" }} />
+        <Handle id="to-child" type="source" position={Position.Bottom} style={{ background: "#64748b" }} />
+
+        {/* avatar */}
         {data.imageUrl ? (
-          <img src={data.imageUrl} alt="" className="h-9 w-9 rounded-full object-cover border" style={{ borderColor: "var(--border)" }} />
+          <img
+            src={data.imageUrl}
+            alt=""
+            className="h-9 w-9 rounded-full object-cover border"
+            style={{
+              boxShadow: `0 0 0 2px color-mix(in oklab, ${accent} 55%, transparent)`,
+              borderColor: `color-mix(in oklab, ${accent} 35%, var(--border))`,
+            }}
+          />
         ) : (
-          <div className="h-9 w-9 rounded-full grid place-items-center text-sm"
-               style={{ background: "rgba(0,0,0,.06)", color: "var(--foreground)", border: "1px solid var(--border)" }}>
+          <div
+            className="h-9 w-9 rounded-full grid place-items-center text-sm border"
+            style={{
+              background: "rgba(0,0,0,.06)",
+              color: "var(--foreground)",
+              boxShadow: `0 0 0 2px color-mix(in oklab, ${accent} 40%, transparent)`,
+              borderColor: `color-mix(in oklab, ${accent} 35%, var(--border))`,
+            }}
+          >
             {initial}
           </div>
         )}
 
+        {/* text */}
         <div className="min-w-0">
-          <div className="truncate font-medium" style={{ color: "var(--card-foreground)" }}>{data.label}</div>
-          <div className="text-[11px] text-neutral-500 truncate">{data.gender ?? ""} {data.locked ? "• locked" : ""}</div>
+          <div className="truncate font-medium" style={{ color: "var(--card-foreground)" }}>
+            {data.label}
+          </div>
+          <div className="text-[11px] text-neutral-500 truncate flex items-center gap-1">
+            {subline}
+            {data.locked && (
+              <span
+                className="ml-1"
+                style={{
+                  fontSize: 10,
+                  padding: "2px 6px",
+                  borderRadius: 9999,
+                  background: COLOR.chipLockBg(accent),
+                  color: COLOR.chipLockFg(accent),
+                }}
+              >
+                locked
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -210,11 +283,7 @@ function walkLineage(
   return { nodes: new Set(nodes), edges: new Set(edges.map((e) => `${e.from}->${e.to}`)) };
 }
 
-// WHĀNGAI-FIRST SELECTOR:
-// For a given (child, role) choose at most ONE edge by view:
-// - WHANGAI: choose whāngai if present, else fall back to biological
-// - BIOLOGICAL: biological only
-// - ALL: return all as-is
+// WHĀNGAI-FIRST SELECTOR (per-role)
 function selectEdgesForView(raw: GEdge[], viewKind: ViewKind): GEdge[] {
   if (viewKind === "ALL") return raw;
 
@@ -231,18 +300,17 @@ function selectEdgesForView(raw: GEdge[], viewKind: ViewKind): GEdge[] {
   for (const list of groups.values()) {
     if (viewKind === "WHANGAI") {
       const chosen =
-        list.find(x => (x.kind ?? "BIOLOGICAL") === "WHANGAI") ??
-        list.find(x => (x.kind ?? "BIOLOGICAL") === "BIOLOGICAL") ??
+        list.find((x) => (x.kind ?? "BIOLOGICAL") === "WHANGAI") ??
+        list.find((x) => (x.kind ?? "BIOLOGICAL") === "BIOLOGICAL") ??
         null;
       if (chosen) out.push(chosen);
-    } else { // BIOLOGICAL
-      const chosen = list.find(x => (x.kind ?? "BIOLOGICAL") === "BIOLOGICAL") ?? null;
+    } else {
+      const chosen = list.find((x) => (x.kind ?? "BIOLOGICAL") === "BIOLOGICAL") ?? null;
       if (chosen) out.push(chosen);
     }
   }
   return out;
 }
-
 
 // Build map child -> [{ parentId, role }]
 function buildParentsMapKindAware(edges: GEdge[]) {
@@ -255,7 +323,7 @@ function buildParentsMapKindAware(edges: GEdge[]) {
   return map;
 }
 
-// Ascend a single line (maternal/paternal) or ANY (fallback) for ancestors-only mode
+// Ancestors ascent for one or both sides
 function ascendLine(
   startId: string,
   parentsOf: Map<string, Array<{ parentId: string; role?: GEdge["role"] }>>,
@@ -264,12 +332,14 @@ function ascendLine(
 ) {
   const nodes = new Set<string>([startId]);
   const edges = new Set<string>();
-  let cur = startId; let depth = 0;
+  let cur = startId;
+  let depth = 0;
   while (depth < maxDepth) {
     const ps = parentsOf.get(cur) || [];
     const pref =
-      which === "ANY" ? (ps.find(p => p.role === "MOTHER") || ps.find(p => p.role === "FATHER") || ps[0])
-      : ps.find(p => p.role === which);
+      which === "ANY"
+        ? ps.find((p) => p.role === "MOTHER") || ps.find((p) => p.role === "FATHER") || ps[0]
+        : ps.find((p) => p.role === which);
     if (!pref) break;
     nodes.add(pref.parentId);
     edges.add(`${pref.parentId}->${cur}`);
@@ -278,6 +348,40 @@ function ascendLine(
   }
   return { nodes, edges };
 }
+
+/* ---------- Edge styling helpers ---------- */
+const edgeStyleFor = (isWhangai: boolean, hi: boolean) => {
+  const color = hi
+    ? COLOR.edge.highlight
+    : isWhangai
+    ? COLOR.edge.whangai
+    : COLOR.edge.biological;
+  return {
+    stroke: color,
+    strokeWidth: hi ? 3 : 1.8,
+    strokeDasharray: isWhangai && !hi ? "6 3" : undefined,
+    strokeLinecap: "round" as const,
+    strokeOpacity: hi ? 1 : 0.95,
+  };
+};
+
+const makeEdges = (list: GEdge[], hiEdges: Set<string>, viewFilter?: { edges: Set<string> }): Edge[] => {
+  const edges = list.map((e) => {
+    const isWhangai = e.kind === "WHANGAI";
+    const hi = hiEdges.has(`${e.source}->${e.target}`);
+    const style = edgeStyleFor(isWhangai, hi);
+    return {
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      type: "smoothstep",
+      data: { type: "parent", role: e.role },
+      style,
+      markerEnd: { type: MarkerType.ArrowClosed, color: style.stroke as string },
+    } as Edge;
+  });
+  return viewFilter ? edges.filter((e) => viewFilter.edges.has(`${e.source}->${e.target}`)) : edges;
+};
 
 /* ---------- Canvas ---------- */
 function GraphCanvas({
@@ -290,13 +394,44 @@ function GraphCanvas({
   onNodeClick: (id: string) => void;
 }) {
   const { fitView } = useReactFlow();
+  // inside GraphCanvas() just above the return
+const TREE_SVG = `
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 600'>
+  <g stroke='#475569' stroke-opacity='0.07' fill='none' stroke-linecap='round' stroke-linejoin='round' stroke-width='4'>
+    <!-- trunk -->
+    <path d='M400 560 C402 480 402 440 400 320' />
+    <!-- main branches -->
+    <path d='M400 420 C360 380 340 340 320 300' />
+    <path d='M400 420 C440 380 460 340 480 300' />
+    <!-- secondary branches left -->
+    <path d='M320 300 C300 270 280 240 250 220' />
+    <path d='M340 340 C315 310 300 285 280 260' />
+    <!-- secondary branches right -->
+    <path d='M480 300 C500 270 520 240 550 220' />
+    <path d='M460 340 C485 310 500 285 520 260' />
+    <!-- twigs -->
+    <path d='M250 220 C235 210 225 200 210 195' />
+    <path d='M550 220 C565 210 575 200 590 195' />
+  </g>
+</svg>`;
+const TREE_BG_DATA_URL = `data:image/svg+xml;utf8,${encodeURIComponent(TREE_SVG)}`;
+
+const RF_STYLE: React.CSSProperties = {
+  backgroundColor: "var(--background)",
+  backgroundImage: `url("${TREE_BG_DATA_URL}")`,
+  backgroundRepeat: "no-repeat",
+  backgroundPosition: "center 18%",
+  backgroundSize: "min(780px, 90%)",
+};
+
   useEffect(() => {
-    const t = setTimeout(() => fitView({ padding: 0.15 }), 0);
+    const t = setTimeout(() => fitView({ padding: 0.15 }), 0);    
     return () => clearTimeout(t);
   }, [nodes, edges, fitView]);
 
   return (
     <ReactFlow
+      style={RF_STYLE}
       nodes={nodes}
       edges={edges}
       nodeTypes={nodeTypes}
@@ -362,10 +497,7 @@ export default function TreeClient() {
   );
 
   // Whāngai-first fallback selection
-  const visibleParentEdges = useMemo(
-    () => selectEdgesForView(rawEdges, viewKind),
-    [rawEdges, viewKind]
-  );
+  const visibleParentEdges = useMemo(() => selectEdgesForView(rawEdges, viewKind), [rawEdges, viewKind]);
 
   // Build maps from *visible* edges so lineage/ancestors respect the current selection
   const { parentsOf } = useMemo(() => buildMaps(visibleParentEdges), [visibleParentEdges]);
@@ -396,10 +528,13 @@ export default function TreeClient() {
     if (side === "MATERNAL" || side === "BOTH") sets.push(ascendLine(focus, parentsOfKindAware, "MOTHER"));
     if (side === "PATERNAL" || side === "BOTH") sets.push(ascendLine(focus, parentsOfKindAware, "FATHER"));
 
-    const nodes = new Set<string>(); const edges = new Set<string>();
-    for (const s of sets) { s.nodes.forEach(n => nodes.add(n)); s.edges.forEach(e => edges.add(e)); }
-    // ensure focus visible
-    nodes.add(focus);
+    const nodes = new Set<string>();
+    const edges = new Set<string>();
+    for (const s of sets) {
+      s.nodes.forEach((n) => nodes.add(n));
+      s.edges.forEach((e) => edges.add(e));
+    }
+    nodes.add(focus); // ensure focus visible
     return { nodes, edges };
   }, [viewMode, side, selected, myId, parentsOfKindAware]);
 
@@ -411,58 +546,23 @@ export default function TreeClient() {
       position: { x: 0, y: 0 },
     }));
 
-    const allEdges: Edge[] = visibleParentEdges.map((e) => {
-      const isWhangai = e.kind === "WHANGAI";
-      const hi = hiEdges.has(`${e.source}->${e.target}`);
-      return {
-        id: e.id,
-        source: e.source,
-        target: e.target,
-        type: "smoothstep",
-        data: { type: "parent", role: e.role },
-        style: hi
-          ? { stroke: "#3b82f6", strokeWidth: 2.5 }
-          : isWhangai
-          ? { stroke: "#f59e0b", strokeDasharray: "6 3" }
-          : { stroke: "#94a3b8" },
-        markerEnd: { type: MarkerType.ArrowClosed },
-      };
-    });
+    // Edges are made with helper (to ensure identical styles)
+    const allEdges = makeEdges(visibleParentEdges, hiEdges);
 
     if (viewMode === "ANCESTORS" && ancestorFilter) {
       const { nodes, edges } = ancestorFilter;
-      const fn = allNodes.filter(n => nodes.has(n.id));
-      const fe = allEdges.filter(e => edges.has(`${e.source}->${e.target}`));
+      const fn = allNodes.filter((n) => nodes.has(n.id));
+      const fe = makeEdges(visibleParentEdges, hiEdges, { edges });
       return layoutGraph(fn, fe);
     }
 
     return layoutGraph(allNodes, allEdges);
   }, [rawNodes, visibleParentEdges, hiNodes, hiEdges, myId, viewMode, ancestorFilter]);
 
-  const rfEdges: Edge[] = useMemo(() => {
-    const edges = visibleParentEdges.map((e) => {
-      const isWhangai = e.kind === "WHANGAI";
-      const hi = hiEdges.has(`${e.source}->${e.target}`);
-      return {
-        id: e.id,
-        source: e.source,
-        target: e.target,
-        type: "smoothstep",
-        data: { type: "parent", role: e.role },
-        style: hi
-          ? { stroke: "#3b82f6", strokeWidth: 2.5 }
-          : isWhangai
-          ? { stroke: "#f59e0b", strokeDasharray: "6 3" }
-          : { stroke: "#94a3b8" },
-        markerEnd: { type: MarkerType.ArrowClosed },
-      };
-    });
-
-    if (viewMode === "ANCESTORS" && ancestorFilter) {
-      return edges.filter(e => ancestorFilter.edges.has(`${e.source}->${e.target}`));
-    }
-    return edges;
-  }, [visibleParentEdges, hiEdges, viewMode, ancestorFilter]);
+  const rfEdges: Edge[] = useMemo(
+    () => makeEdges(visibleParentEdges, hiEdges, viewMode === "ANCESTORS" ? ancestorFilter ?? undefined : undefined),
+    [visibleParentEdges, hiEdges, viewMode, ancestorFilter]
+  );
 
   async function computeRel() {
     if (!a || !b) return;
@@ -486,7 +586,7 @@ export default function TreeClient() {
 
   return (
     <div className="grid gap-4">
-      {/* Toolbar: person + highlight + kind filter + mode/side + legend */}
+      {/* Toolbar */}
       <div className="card p-4 flex flex-wrap items-end gap-3">
         <div className="flex flex-col">
           <label className="text-xs text-neutral-500 mb-1">Person</label>
@@ -494,24 +594,36 @@ export default function TreeClient() {
             <select className="input min-w-56" value={selected} onChange={(e) => setSelected(e.target.value)}>
               <option value="">{myId ? "— Use 'Me' by default —" : "— Select —"}</option>
               {options.map((o) => (
-                <option key={o.id} value={o.id}>{o.label}</option>
+                <option key={o.id} value={o.id}>
+                  {o.label}
+                </option>
               ))}
             </select>
-            {myId && <button className="btn" onClick={() => setSelected(myId!)}>Use Me</button>}
+            {myId && (
+              <button className="btn" onClick={() => setSelected(myId!)}>
+                Use Me
+              </button>
+            )}
           </div>
         </div>
 
         <div className="flex gap-2 items-end">
-          <button className="btn" onClick={() => highlight("MOTHER")}>Highlight maternal line</button>
-          <button className="btn" onClick={() => highlight("FATHER")}>Highlight paternal line</button>
-          <button className="btn" onClick={clearHighlight}>Clear</button>
+          <button className="btn" onClick={() => highlight("MOTHER")}>
+            Highlight maternal line
+          </button>
+          <button className="btn" onClick={() => highlight("FATHER")}>
+            Highlight paternal line
+          </button>
+          <button className="btn" onClick={clearHighlight}>
+            Clear
+          </button>
         </div>
 
         {/* Mode toggle */}
         <div className="ml-auto flex items-center gap-2">
           <span className="text-xs text-neutral-500">Mode</span>
           <div className="inline-flex rounded-lg border overflow-hidden">
-            {(["GRAPH","ANCESTORS"] as ViewMode[]).map((m) => (
+            {(["GRAPH", "ANCESTORS"] as ViewMode[]).map((m) => (
               <button
                 key={m}
                 onClick={() => setViewMode(m)}
@@ -524,7 +636,7 @@ export default function TreeClient() {
 
           {viewMode === "ANCESTORS" && (
             <div className="inline-flex rounded-lg border overflow-hidden">
-              {(["MATERNAL","PATERNAL","BOTH"] as Side[]).map((s) => (
+              {(["MATERNAL", "PATERNAL", "BOTH"] as Side[]).map((s) => (
                 <button
                   key={s}
                   onClick={() => setSide(s)}
@@ -537,7 +649,7 @@ export default function TreeClient() {
           )}
         </div>
 
-        {/* Kind filter (segmented) */}
+        {/* Kind filter (segmented) + Legend */}
         <div className="flex items-center gap-2">
           <span className="text-xs text-neutral-500">Show</span>
           <div className="inline-flex rounded-lg border overflow-hidden">
@@ -555,15 +667,24 @@ export default function TreeClient() {
           </div>
 
           {/* Legend */}
-          <div className="hidden sm:flex items-center gap-3 text-xs text-neutral-500 ml-3">
+          <div className="hidden sm:flex items-center gap-4 text-xs text-neutral-500 ml-3">
             <span className="inline-flex items-center gap-1">
-              <span className="inline-block w-5 h-[2px] bg-[#94a3b8]" /> Biological
+              <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: COLOR.gender.MALE }} /> Male
             </span>
             <span className="inline-flex items-center gap-1">
-              <span className="inline-block w-5 h-[2px] border-t border-dashed border-[#f59e0b]" /> Whāngai
+              <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: COLOR.gender.FEMALE }} /> Female
             </span>
             <span className="inline-flex items-center gap-1">
-              <span className="inline-block w-5 h-[2px] bg-[#3b82f6]" /> Highlight
+              <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: COLOR.gender.OTHER }} /> Other/Unknown
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="inline-block w-5 h-[2px]" style={{ background: COLOR.edge.biological }} /> Biological
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="inline-block w-5 h-[2px] border-t border-dashed" style={{ borderColor: COLOR.edge.whangai }} /> Whāngai
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="inline-block w-5 h-[2px]" style={{ background: COLOR.edge.highlight }} /> Highlight
             </span>
           </div>
         </div>
@@ -576,15 +697,31 @@ export default function TreeClient() {
         </div>
         <select className="input min-w-56" value={a} onChange={(e) => setA(e.target.value)}>
           <option value="">A — Select</option>
-          {options.map((o) => (<option key={o.id} value={o.id}>{o.label}</option>))}
+          {options.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.label}
+            </option>
+          ))}
         </select>
         <select className="input min-w-56" value={b} onChange={(e) => setB(e.target.value)}>
           <option value="">B — Select</option>
-          {options.map((o) => (<option key={o.id} value={o.id}>{o.label}</option>))}
+          {options.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.label}
+            </option>
+          ))}
         </select>
-        <button className="btn btn-primary" onClick={computeRel} disabled={!a || !b}>Compute</button>
-        {rel && <div className="text-sm text-neutral-700">Result: <strong>{rel}</strong></div>}
-        <div className="ml-auto text-xs text-neutral-500">Picking: <strong>{pick}</strong> These are approximations and may not reflect the actual relationship of the people selected</div>
+        <button className="btn btn-primary" onClick={computeRel} disabled={!a || !b}>
+          Compute
+        </button>
+        {rel && (
+          <div className="text-sm text-neutral-700">
+            Result: <strong>{rel}</strong>
+          </div>
+        )}
+        <div className="ml-auto text-xs text-neutral-500">
+          Picking: <strong>{pick}</strong> These are approximations and may not reflect the actual relationship of the people selected
+        </div>
       </div>
 
       {/* Canvas */}

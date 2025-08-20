@@ -8,6 +8,7 @@ import { brandFont } from "./fonts";
 import NavWhakapapaLink from "@/components/nav-whakapapa-link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import MobileNav from "@/components/mobile-nav";
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const session = await getServerSession(authOptions);
@@ -19,6 +20,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <Providers>
           <header className="sticky top-0 z-40 border-b bg-zinc-900/70 backdrop-blur">
             <div className="container mx-auto max-w-6xl flex items-center justify-between py-3 relative">
+               <div className="hidden md:flex w-full items-center justify-between">
               <Link href="/" className="brand-title">
                 Rangi and Rarati Hanara Reunion 2025
               </Link>
@@ -31,6 +33,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 <Link className="nav-link" href="/dashboard">Upload</Link>
                 <HeaderAuth />
               </nav>
+              </div>
+               <div className="w-full md:hidden">
+      <MobileNav />
+    </div>
             </div>
           </header>
 
