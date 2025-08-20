@@ -1,43 +1,77 @@
+// src/lib/drive-admin.ts
 import { google } from "googleapis";
 import { Readable } from "node:stream";
 
+type DriveEnv = {
+  clientId: string;
+  clientSecret: string;
+  refreshToken: string;
+  folderId: string;
+  shared: boolean;
+};
 
-const CLIENT_ID = process.env.DRIVE_CLIENT_ID!;         // <-- use DRIVE_* here
-const CLIENT_SECRET = process.env.DRIVE_CLIENT_SECRET!;
-const REFRESH_TOKEN = process.env.GOOGLE_DRIVE_ADMIN_REFRESH_TOKEN!;
-export const DRIVE_FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID!;
+// ---- Runtime env loader (no top-level reads) ----
+function readDriveEnv(): DriveEnv {
+  const {
+    DRIVE_CLIENT_ID,
+    DRIVE_CLIENT_SECRET,
+    GOOGLE_DRIVE_ADMIN_REFRESH_TOKEN,
+    GOOGLE_DRIVE_FOLDER_ID,
+    DRIVE_SHARED,
+  } = process.env;
 
-// Set true only if the folder is in a Shared Drive
-const USING_SHARED_DRIVE = false;
-
-function assertEnv() {
   const miss: string[] = [];
-  if (!CLIENT_ID) miss.push("DRIVE_CLIENT_ID");
-  if (!CLIENT_SECRET) miss.push("DRIVE_CLIENT_SECRET");
-  if (!REFRESH_TOKEN) miss.push("GOOGLE_DRIVE_ADMIN_REFRESH_TOKEN");
-  if (!DRIVE_FOLDER_ID) miss.push("GOOGLE_DRIVE_FOLDER_ID");
+  if (!DRIVE_CLIENT_ID) miss.push("DRIVE_CLIENT_ID");
+  if (!DRIVE_CLIENT_SECRET) miss.push("DRIVE_CLIENT_SECRET");
+  if (!GOOGLE_DRIVE_ADMIN_REFRESH_TOKEN) miss.push("GOOGLE_DRIVE_ADMIN_REFRESH_TOKEN");
+  if (!GOOGLE_DRIVE_FOLDER_ID) miss.push("GOOGLE_DRIVE_FOLDER_ID");
   if (miss.length) throw new Error(`Missing env: ${miss.join(", ")}`);
+
+  const shared =
+    String(DRIVE_SHARED ?? "false").toLowerCase() === "true" ||
+    String(DRIVE_SHARED ?? "") === "1";
+
+  return {
+    clientId: DRIVE_CLIENT_ID!,
+    clientSecret: DRIVE_CLIENT_SECRET!,
+    refreshToken: GOOGLE_DRIVE_ADMIN_REFRESH_TOKEN!,
+    folderId: GOOGLE_DRIVE_FOLDER_ID!,
+    shared,
+  };
 }
-assertEnv();
 
-const oauth2 = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET);
-oauth2.setCredentials({ refresh_token: REFRESH_TOKEN });
+// ---- Lazy Google Drive client (memoized) ----
+let cached:
+  | { key: string; drive: ReturnType<typeof google.drive>; folderId: string; shared: boolean }
+  | null = null;
 
-function drive() {
-  return google.drive({ version: "v3", auth: oauth2 });
+function getDrive() {
+  const env = readDriveEnv();
+  const key = `${env.clientId}|${env.clientSecret}|${env.refreshToken}|${env.shared}`;
+  if (cached && cached.key === key) return cached;
+
+  const oauth2 = new google.auth.OAuth2(env.clientId, env.clientSecret);
+  oauth2.setCredentials({ refresh_token: env.refreshToken });
+  const drive = google.drive({ version: "v3", auth: oauth2 });
+
+  cached = { key, drive, folderId: env.folderId, shared: env.shared };
+  return cached;
 }
 
+// ---- Public helpers ----
 export async function verifyDriveFolder() {
-  assertEnv();
+  const { drive, folderId, shared } = getDrive();
   try {
-    const { data } = await drive().files.get({
-      fileId: DRIVE_FOLDER_ID,
+    const { data } = await drive.files.get({
+      fileId: folderId,
       fields: "id,name,mimeType,shortcutDetails,parents",
-      supportsAllDrives: USING_SHARED_DRIVE,
+      supportsAllDrives: shared,
     });
 
     if (data.mimeType === "application/vnd.google-apps.shortcut") {
-      throw new Error("GOOGLE_DRIVE_FOLDER_ID points to a Shortcut. Open it and copy the TARGET folder's ID.");
+      throw new Error(
+        "GOOGLE_DRIVE_FOLDER_ID points to a Shortcut. Open it and copy the TARGET folder's ID."
+      );
     }
     if (data.mimeType !== "application/vnd.google-apps.folder") {
       throw new Error("GOOGLE_DRIVE_FOLDER_ID is not a folder.");
@@ -59,17 +93,18 @@ export async function uploadToDrive({
   mimeType: string;
   buffer: Buffer;
 }) {
-  await verifyDriveFolder();
-  try {
-    const res = await drive().files.create({
-      requestBody: { name: fileName, parents: [DRIVE_FOLDER_ID] },
-      media: {
-  mimeType: mimeType || "application/octet-stream",
-  body: Readable.from(buffer),
-},
+  const { drive, folderId, shared } = getDrive();
+  await verifyDriveFolder(); // sanity check
 
+  try {
+    const res = await drive.files.create({
+      requestBody: { name: fileName, parents: [folderId] },
+      media: {
+        mimeType: mimeType || "application/octet-stream",
+        body: Readable.from(buffer),
+      },
       fields: "id,name,mimeType,size,webViewLink,thumbnailLink,iconLink",
-      supportsAllDrives: USING_SHARED_DRIVE,
+      supportsAllDrives: shared,
     });
     return res.data;
   } catch (e: any) {
@@ -80,22 +115,27 @@ export async function uploadToDrive({
 }
 
 export async function getDriveFileStream(fileId: string) {
+  const { drive } = getDrive();
   try {
-    const { data } = await drive().files.get(
+    const { data } = await drive.files.get(
       { fileId, alt: "media" },
       { responseType: "stream" }
     );
 
-    // convert Node stream -> Web ReadableStream
-    const stream = new ReadableStream({
-      start(controller) {
-        (data as any).on("data", (chunk: Buffer) => controller.enqueue(chunk));
-        (data as any).on("end", () => controller.close());
-        (data as any).on("error", (err: unknown) => controller.error(err));
-      },
-    });
+    // Convert Node Readable -> Web ReadableStream for Next Response
+    const nodeStream = data as unknown as NodeJS.ReadableStream;
+    const body =
+      (Readable as any).toWeb
+        ? (Readable as any).toWeb(nodeStream)
+        : new ReadableStream({
+            start(controller) {
+              (nodeStream as any).on("data", (chunk: Buffer) => controller.enqueue(chunk));
+              (nodeStream as any).on("end", () => controller.close());
+              (nodeStream as any).on("error", (err: unknown) => controller.error(err));
+            },
+          });
 
-    return stream;
+    return body;
   } catch (e: any) {
     const info = e?.response?.data || e?.message || e;
     console.error("Drive get stream error:", info);
@@ -104,12 +144,12 @@ export async function getDriveFileStream(fileId: string) {
 }
 
 export async function deleteDriveFile(fileId: string) {
-  const d = getAdminDrive();
-  await d.files.delete({ fileId });
+  const { drive } = getDrive();
+  await drive.files.delete({ fileId });
 }
 
-
-// optional: keep for debug routes like /api/drive/whoami
+// Optional: for diagnostics
 export function getAdminDrive() {
-  return drive();
+  const { drive } = getDrive();
+  return drive;
 }
