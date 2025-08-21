@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
+import Image from "next/image";
 
 type UserShape = {
   name?: string | null;
@@ -100,8 +101,10 @@ export default function ProfileMenuModal({
         {/* Header */}
         <div className="flex items-center gap-3 px-5 py-4">
           {user.image ? (
-            <img
+            <Image
               src={user.image}
+              width={40}
+              height={40}
               alt=""
               className="h-10 w-10 rounded-full object-cover ring-2 ring-black/10 dark:ring-white/20"
               referrerPolicy="no-referrer"

@@ -410,8 +410,6 @@ export default async function AdminEventsPage() {
                 </form>
               </div>
             ))}
-
-            {/* Create Item */}
             <div className="border p-3 rounded space-y-2">
               <h4 className="font-medium">Add New Item</h4>
               <form action={createItem} className="space-y-1">

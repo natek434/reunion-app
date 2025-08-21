@@ -1,28 +1,13 @@
-// src/app/api/upload-multi/[id]/route.ts  (or your actual path for this GET route)
+// src/app/api/upload-multi/[id]/route.ts
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { Readable } from "node:stream";
+import { getLocalFileStream } from "@/lib/localstorage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
-
-function driveConfigured() {
-  const {
-    DRIVE_CLIENT_ID,
-    DRIVE_CLIENT_SECRET,
-    GOOGLE_DRIVE_ADMIN_REFRESH_TOKEN,
-    GOOGLE_DRIVE_FOLDER_ID,
-  } = process.env;
-  return Boolean(
-    DRIVE_CLIENT_ID &&
-      DRIVE_CLIENT_SECRET &&
-      GOOGLE_DRIVE_ADMIN_REFRESH_TOKEN &&
-      GOOGLE_DRIVE_FOLDER_ID
-  );
-}
 
 export async function GET(
   _req: Request,
@@ -47,30 +32,20 @@ export async function GET(
     return new Response("Forbidden", { status: 403 });
   }
 
-  if (!driveConfigured()) {
-    return new Response("Google Drive is not configured.", { status: 503 });
-  }
-
   try {
-    // 🔻 lazy import so envs are read at runtime, not build time
-    const { getDriveFileStream } = await import("@/lib/drive-admin");
-    const nodeStream = await getDriveFileStream(item.driveFileId);
+    // Local storage: read the file bytes
+    const { getLocalFileStream } = await import("@/lib/localstorage");
+    const data = await getLocalFileStream(item.fileName) // <-- ensure your schema uses `filename`
 
-    // If the helper returns a Node stream, convert to Web stream for Response
-    const body =
-      nodeStream && typeof (nodeStream as any).pipe === "function" && !(nodeStream as any).getReader
-        ? (Readable as any).toWeb(nodeStream)
-        : (nodeStream as any);
-
-    return new Response(body, {
+    return new Response(data, {
       headers: {
         "Content-Type": item.mimeType,
-        "Content-Disposition": `inline; filename="${encodeURIComponent(item.name)}"`,
+        "Content-Disposition": `inline; fileName="${encodeURIComponent(item.name)}"`,
         "Cache-Control": "private, max-age=0, no-store",
       },
     });
   } catch (e) {
-    console.error("Drive stream error", e);
+    console.error("Local file read error", e);
     return new Response("Error retrieving file", { status: 500 });
   }
 }

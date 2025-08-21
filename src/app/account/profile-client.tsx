@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
+import Image from "next/image";
 
 type Props = {
   initialName: string;
@@ -30,10 +31,7 @@ export default function ProfileClient({
 
     const trimmedName = name.trim();
     if (trimmedName !== initialName) payload.name = trimmedName;
-
-    // Only send image if changed:
     if (image !== initialImage) {
-      // When cleared in UI, send null to clear in DB
       payload.image = image ? image : null;
     }
 
@@ -51,12 +49,8 @@ export default function ProfileClient({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Update failed");
-
-      // Refresh session so header/avatar updates immediately
-      // We merge the new values into the session snapshot for instant UI feedback.
       await update({
         name: trimmedName,
-        // If cleared, set to "" so the header shows the fallback initials immediately.
         image: image || "",
       } as any);
 
@@ -75,8 +69,6 @@ export default function ProfileClient({
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok || !data?.id) throw new Error(data?.error || "Upload failed");
-
-      // Use your protected files route (app-relative). Server accepts this.
       setImage(`/api/files/${data.id}`);
       toast.success("Avatar uploaded");
     } catch (e: any) {
@@ -85,7 +77,7 @@ export default function ProfileClient({
   }
 
   function clearAvatar() {
-    setImage(""); // UI shows initials; server receives null on save
+    setImage("");
     toast.message("Avatar will be cleared after you save.");
   }
 
@@ -124,7 +116,7 @@ export default function ProfileClient({
       <div className="grid gap-4">
         <div className="flex items-center gap-4">
           {image ? (
-            <img src={image} alt="" className="h-16 w-16 rounded-full object-cover border" />
+            <Image src={image} alt="" width={36} height={36} className="h-16 w-16 rounded-full object-cover border" />
           ) : (
             <div className="h-16 w-16 rounded-full bg-neutral-200 grid place-items-center border">
               <span className="text-neutral-600 text-xl">

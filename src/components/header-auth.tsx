@@ -28,14 +28,17 @@ export default function HeaderAuth() {
         <span className="hidden sm:block text-sm text-white/80">{name}</span>
 
         {avatar ? (
-          <img
-            src={avatar}
-            alt="Profile"
-            className="h-9 w-9 rounded-full ring-2 ring-white/20 object-cover"
-            referrerPolicy="no-referrer"
-            // If you haven't added remotePatterns for Google hosts yet, temporarily uncomment:
-            // unoptimized
-          />
+
+<Image
+  src={avatar}
+  alt="Profile"
+  width={36}                // required
+  height={36}               // required
+  className="h-9 w-9 rounded-full ring-2 ring-white/20 object-cover"
+  referrerPolicy="no-referrer"
+  // unoptimized // uncomment if remotePatterns not configured
+/>
+
         ) : (
           <div className="h-9 w-9 rounded-full bg-white/20 text-white grid place-items-center ring-2 ring-white/20">
             <span className="font-semibold">{name.charAt(0).toUpperCase()}</span>

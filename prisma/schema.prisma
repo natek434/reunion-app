@@ -12,7 +12,7 @@ model GalleryItem {
   id          String      @id @default(cuid())
   userId      String
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  driveFileId String
+  fileName    String
   mimeType    String
   name        String
   size        Int?

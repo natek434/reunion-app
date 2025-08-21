@@ -3,21 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-
-/**
- * Admin Members Page
- *
- * This page exposes CRUD functionality for Person records (the reunion
- * "members") as well as simple tools to link and unlink parent-child
- * relationships. Only users with the ADMIN role may access this page.
- *
- * Forms throughout this component post to the server actions defined
- * below. Each action checks the current session for an admin role
- * before performing mutations with Prisma. After changes, the page
- * revalidates itself to show updated data immediately.
- */
-
-/** Helper to require an admin role. */
+ 
 async function requireAdmin() {
   const session = await getServerSession(authOptions);
   if (!session?.user || (session.user).role !== "ADMIN") {
@@ -25,9 +11,6 @@ async function requireAdmin() {
   }
 }
 
-/**
- * Create a new member.
- */
 async function createMember(formData: FormData) {
   "use server";
   await requireAdmin();
@@ -50,9 +33,6 @@ async function createMember(formData: FormData) {
   revalidatePath("/admin/members");
 }
 
-/**
- * Update an existing member.
- */
 async function updateMember(formData: FormData) {
   "use server";
   await requireAdmin();
@@ -76,14 +56,6 @@ async function updateMember(formData: FormData) {
   });
   revalidatePath("/admin/members");
 }
-
-/**
- * Soft-delete a member.
- *
- * Sets the deletedAt timestamp so that the record persists but is
- * hidden from most queries. Use GET requests to remove the user from
- * public views.
- */
 async function deleteMember(formData: FormData) {
   "use server";
   await requireAdmin();
@@ -95,12 +67,6 @@ async function deleteMember(formData: FormData) {
   revalidatePath("/admin/members");
 }
 
-/**
- * Toggle the locked status of a member.
- *
- * The form must include a hidden `id` and `nextLocked` value ("true" or
- * "false").
- */
 async function toggleLock(formData: FormData) {
   "use server";
   await requireAdmin();
@@ -110,9 +76,6 @@ async function toggleLock(formData: FormData) {
   revalidatePath("/admin/members");
 }
 
-/**
- * Link a parent and child.
- */
 async function linkParent(formData: FormData) {
   "use server";
   await requireAdmin();
@@ -120,16 +83,11 @@ async function linkParent(formData: FormData) {
   const childId = String(formData.get("childId") || "");
   const role = String(formData.get("role") || "MOTHER");
   const kind = String(formData.get("kind") || "BIOLOGICAL");
-  // Create the relationship. If constraints are violated, Prisma will throw.
   await prisma.parentChild.create({
     data: { parentId, childId, role, kind },
   });
   revalidatePath("/admin/members");
 }
-
-/**
- * Unlink a parent and child.
- */
 async function unlinkParent(formData: FormData) {
   "use server";
   await requireAdmin();
@@ -150,23 +108,19 @@ export default async function AdminMembersPage() {
   if ((session.user).role !== "ADMIN") {
     redirect("/");
   }
-  // fetch all undeleted persons
   const persons = await prisma.person.findMany({
     where: { deletedAt: null },
     orderBy: { lastName: "asc" },
   });
-  // Options for select elements
   const genderOptions = ["UNKNOWN", "MALE", "FEMALE", "OTHER"];
   const roleOptions = ["MOTHER", "FATHER"];
   const kindOptions = ["BIOLOGICAL", "WHANGAI"];
   return (
     <div className="p-6 space-y-10">
       <h1 className="text-2xl font-bold">Admin: Members</h1>
-      {/* List existing members */}
       {persons.map(person => (
         <div key={person.id} className="border rounded p-4 space-y-2">
           <h2 className="text-lg font-semibold">{person.firstName} {person.lastName}</h2>
-          {/* Update form */}
           <form action={updateMember} className="space-y-1">
             <input type="hidden" name="id" value={person.id} />
             <label className="block">
@@ -228,7 +182,6 @@ export default async function AdminMembersPage() {
               Save Member
             </button>
           </form>
-          {/* Lock/unlock form */}
           <form action={toggleLock} className="mt-1">
             <input type="hidden" name="id" value={person.id} />
             <input type="hidden" name="nextLocked" value={person.locked ? "false" : "true"} />
@@ -236,7 +189,6 @@ export default async function AdminMembersPage() {
               {person.locked ? "Unlock" : "Lock"}
             </button>
           </form>
-          {/* Delete form */}
           <form action={deleteMember} className="mt-1">
             <input type="hidden" name="id" value={person.id} />
             <button type="submit" className="px-3 py-1 rounded bg-red-600 text-white">
@@ -245,7 +197,6 @@ export default async function AdminMembersPage() {
           </form>
         </div>
       ))}
-      {/* Create a new member */}
       <div className="border rounded p-4 space-y-2">
         <h2 className="text-lg font-semibold">Add New Member</h2>
         <form action={createMember} className="space-y-1">
@@ -284,10 +235,8 @@ export default async function AdminMembersPage() {
           </button>
         </form>
       </div>
-      {/* Relationship tools */}
       <div className="border rounded p-4 space-y-2">
         <h2 className="text-lg font-semibold">Manage Relationships</h2>
-        {/* Link parent/child */}
         <form action={linkParent} className="space-y-1">
           <h3 className="font-medium">Link Parent & Child</h3>
           <label className="block">
@@ -336,7 +285,6 @@ export default async function AdminMembersPage() {
             Link
           </button>
         </form>
-        {/* Unlink parent/child */}
         <form action={unlinkParent} className="space-y-1 mt-4">
           <h3 className="font-medium">Unlink Parent & Child</h3>
           <label className="block">

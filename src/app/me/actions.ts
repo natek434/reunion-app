@@ -3,7 +3,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { deleteDriveFile } from "@/lib/drive-admin";
+import { deleteLocalFile } from "@/lib/localstorage";
 import { redirect } from "next/navigation";
 
 export async function deleteUploadAction(formData: FormData) {
@@ -17,7 +17,7 @@ export async function deleteUploadAction(formData: FormData) {
   if (!item) throw new Error("Not found");
   if (item.userId !== (session.user as any).id) throw new Error("Forbidden");
 
-  try { await deleteDriveFile(item.driveFileId); } catch {}
+  try { await deleteLocalFile(item.filename); } catch {}
   await prisma.galleryItem.delete({ where: { id } });
 
   // Refresh page data

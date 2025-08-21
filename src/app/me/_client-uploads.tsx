@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import Image from "next/image";
 
 type UploadItem = {
   id: string;
@@ -101,7 +102,7 @@ export default function ClientUploads({ initial }: { initial: UploadItem[] }) {
                   <div className="relative">
                     {isImg ? (
                       // keep img for simplicity; this is a thumb endpoint
-                      <img src={thumb} alt={it.name} className="w-full h-48 object-cover" loading="lazy" />
+                      <Image src={thumb} alt={it.name} className="w-full h-48 object-cover" loading="lazy" />
                     ) : isVideo ? (
                       <video
                         className="w-full h-48 object-cover"
