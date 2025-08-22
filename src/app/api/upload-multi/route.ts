@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     const saved = await prisma.galleryItem.create({
       data: {
         userId,
-        filename: uploaded.name,                   // store the sanitized file name returned by uploadToLocal
+        fileName: uploaded.name,                   // store the sanitized file name returned by uploadToLocal
         mimeType: uploaded.mimeType || file.type, // preserve mime type
         name: uploaded.name || file.name,         // original name or sanitized name
         size: uploaded.size,                      // store file size if needed

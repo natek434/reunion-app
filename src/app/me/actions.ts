@@ -17,7 +17,7 @@ export async function deleteUploadAction(formData: FormData) {
   if (!item) throw new Error("Not found");
   if (item.userId !== (session.user as any).id) throw new Error("Forbidden");
 
-  try { await deleteLocalFile(item.filename); } catch {}
+  try { await deleteLocalFile(item.fileName); } catch {}
   await prisma.galleryItem.delete({ where: { id } });
 
   // Refresh page data
