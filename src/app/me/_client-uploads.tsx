@@ -101,8 +101,7 @@ export default function ClientUploads({ initial }: { initial: UploadItem[] }) {
                 <label className="block cursor-pointer">
                   <div className="relative">
                     {isImg ? (
-                      // keep img for simplicity; this is a thumb endpoint
-                      <Image src={thumb} alt={it.name} className="w-full h-48 object-cover" loading="lazy" />
+                      <img src={thumb} alt={it.name} className="w-full h-48 object-cover" loading="lazy" />
                     ) : isVideo ? (
                       <video
                         className="w-full h-48 object-cover"

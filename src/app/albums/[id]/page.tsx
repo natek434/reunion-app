@@ -11,6 +11,6 @@ type AlbumParams = Promise<{ id: string }>;
 export default async function AlbumPage({ params }: { params: AlbumParams }) {
   const { id } = await params;
   const session = await getServerSession(authOptions);
-if (!session?.user?.id) redirect("/login");
+if (!session?.user?.id) redirect("/signin");
   return <AlbumClient albumId={id} />;
 }

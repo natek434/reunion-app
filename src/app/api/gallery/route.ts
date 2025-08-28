@@ -43,8 +43,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Params }) 
   // Try to delete from Drive (lazy import so it doesn’t execute at build time)
   if (driveConfigured()) {
     try {
-      const { deleteDriveFile } = await import("@/lib/drive-admin");
-      await deleteDriveFile(item.driveFileId);
+      const { deleteLocalFile } = await import("@/lib/localstorage");
+      await deleteLocalFile(item.fileName);
     } catch (e) {
       // ignore cloud delete errors; continue to remove DB row
       console.warn("Drive delete failed (ignored):", e);

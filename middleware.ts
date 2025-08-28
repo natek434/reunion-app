@@ -26,5 +26,5 @@ export async function middleware(req: NextRequest) {
 
 // Match subpaths too
 export const config = {
-  matcher: ["/gallery/:path*", "/family/:path*", "/dashboard/:path*", "/me/:path*", "/account/:path*"],
+  matcher: ["/gallery/:path*", "/family/:path*", "/albums/:path*",  "/dashboard/:path*", "/me/:path*", "/account/:path*"],
 };
