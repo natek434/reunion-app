@@ -5,8 +5,8 @@ import { NextResponse } from "next/server";
 
 const schema = z.object({
   name: z.string().min(1),
-  email: z.string().email(),
-  password: z.string().min(6),
+  email: z.email(),
+  password: z.string().min(7),
 });
 
 export async function POST(req: Request) {

@@ -194,7 +194,7 @@ function PersonNode({ data }: { data: GNode & { isMe?: boolean; highlighted?: bo
           <div className="truncate font-medium" style={{ color: "var(--card-foreground)" }}>
             {data.label}
           </div>
-          <div className="text-[11px] text-neutral-500 truncate flex items-center gap-1">
+          <div className="text-[11px]  truncate flex items-center gap-1">
             {subline}
             {data.locked && (
               <span
@@ -587,7 +587,7 @@ export default function TreeClient() {
       {/* Toolbar */}
       <div className="card p-4 flex flex-wrap items-end gap-3">
         <div className="flex flex-col">
-          <label className="text-xs text-neutral-500 mb-1">Person</label>
+          <label className="text-xs  mb-1">Person</label>
           <div className="flex gap-2">
             <select className="input min-w-56" value={selected} onChange={(e) => setSelected(e.target.value)}>
               <option value="">{myId ? "— Use 'Me' by default —" : "— Select —"}</option>
@@ -619,7 +619,7 @@ export default function TreeClient() {
 
         {/* Mode toggle */}
         <div className="ml-auto flex items-center gap-2">
-          <span className="text-xs text-neutral-500">Mode</span>
+          <span className="text-xs ">Mode</span>
           <div className="inline-flex rounded-lg border overflow-hidden">
             {(["GRAPH", "ANCESTORS"] as ViewMode[]).map((m) => (
               <button
@@ -649,7 +649,7 @@ export default function TreeClient() {
 
         {/* Kind filter (segmented) + Legend */}
         <div className="flex items-center gap-2">
-          <span className="text-xs text-neutral-500">Show</span>
+          <span className="text-xs ">Show</span>
           <div className="inline-flex rounded-lg border overflow-hidden">
             {(["BIOLOGICAL", "WHANGAI", "ALL"] as ViewKind[]).map((k) => (
               <button
@@ -665,7 +665,7 @@ export default function TreeClient() {
           </div>
 
           {/* Legend */}
-          <div className="hidden sm:flex items-center gap-4 text-xs text-neutral-500 ml-3">
+          <div className="hidden sm:flex items-center gap-4 text-xs  ml-3">
             <span className="inline-flex items-center gap-1">
               <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: COLOR.gender.MALE }} /> Male
             </span>
@@ -690,7 +690,7 @@ export default function TreeClient() {
 
       {/* Relationship compute */}
       <div className="card p-4 flex flex-wrap items-end gap-3">
-        <div className="text-sm text-neutral-600">
+        <div className="text-sm ">
           Click nodes to pick <span className="font-semibold">A</span> then <span className="font-semibold">B</span>, or choose below:
         </div>
         <select className="input min-w-56" value={a} onChange={(e) => setA(e.target.value)}>
@@ -713,11 +713,11 @@ export default function TreeClient() {
           Compute
         </button>
         {rel && (
-          <div className="text-sm text-neutral-700">
+          <div className="text-sm ">
             Result: <strong>{rel}</strong>
           </div>
         )}
-        <div className="ml-auto text-xs text-neutral-500">
+        <div className="ml-auto text-xs ">
           Picking: <strong>{pick}</strong> These are approximations and may not reflect the actual relationship of the people selected
         </div>
       </div>

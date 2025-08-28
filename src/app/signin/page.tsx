@@ -21,7 +21,7 @@ export default function SignIn() {
         <input className="input" placeholder="Password" type="password" value={password} onChange={(e)=>setPassword(e.target.value)} />
         <button className="btn btn-primary w-full" type="submit">Sign in</button>
       </form>
-      <div className="my-4 text-center text-sm text-neutral-500">or</div>
+      <div className="my-4 text-center text-sm ">or</div>
       <button className="btn w-full" onClick={() => signIn("google", { callbackUrl: "/dashboard" })}>
         Continue with Google
       </button>

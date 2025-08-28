@@ -21,7 +21,7 @@ export default function SignUp() {
       >
         <input className="input" placeholder="Name" value={form.name} onChange={onChange("name")} />
         <input className="input" placeholder="Email" value={form.email} onChange={onChange("email")} />
-        <input className="input" placeholder="Password (min 6)" type="password" value={form.password} onChange={onChange("password")} />
+        <input className="input" placeholder="Password (min 7)" type="password" value={form.password} onChange={onChange("password")} />
         <button className="btn btn-primary w-full" type="submit">Sign up</button>
       </form>
     </div>

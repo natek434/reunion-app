@@ -21,11 +21,11 @@ export default async function EventPage() {
     return (
       <div className="card p-8">
         <h1 className="text-2xl font-semibold">No event yet</h1>
-        <p className="text-neutral-600 mt-2">Create an Event row in the database to see details here.</p>
+        <p className=" mt-2">Create an Event row in the database to see details here.</p>
       </div>
     );
   }
-
+  const serverNow = Date.now();
  // Use the authenticated user's id (set by NextAuth) to locate their RSVP.
   const you = session?.user?.id
     ? event.rsvps.find(r => r.userId === (session.user as any).id)
@@ -54,8 +54,8 @@ export default async function EventPage() {
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold">{event.title}</h1>
-            <p className="text-neutral-600 mt-1">{fmtRange(event.start, event.end, event.timezone)}</p>
-            <p className="text-neutral-700 mt-1">
+            <p className=" mt-1">{fmtRange(event.start, event.end, event.timezone)}</p>
+            <p className=" mt-1">
               {event.location}{event.address ? ` — ${event.address}` : ""}
             </p>
           </div>
@@ -68,18 +68,21 @@ export default async function EventPage() {
         <div className="mt-6 grid md:grid-cols-3 gap-6">
           <div className="card p-6">
             <h2 className="font-semibold mb-2">Countdown</h2>
-            <Countdown to={event.start.toISOString()} />
+             <Countdown
+        toEpochMs={event.start.getTime()}
+        serverNowEpochMs={serverNow}
+      />
           </div>
           <div className="card p-6">
             <h2 className="font-semibold mb-2">About</h2>
-            <p className="text-neutral-700">{event.description ?? "No description yet."}</p>
+            <p className="">{event.description ?? "No description yet."}</p>
           </div>
           <div className="card p-6">
             <h2 className="font-semibold mb-2">RSVP</h2>
             {session?.user?.email ? (
               <RSVPClient eventId={event.id} initialStatus={you?.status ?? "PENDING"} initialGuests={you?.guests ?? 0} />
             ) : (
-              <p className="text-neutral-700">
+              <p className="">
                 Please <Link className="underline" href="/signin">sign in</Link> to RSVP.
               </p>
             )}
@@ -100,10 +103,10 @@ export default async function EventPage() {
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                       <div>
                         <div className="font-medium">{it.title}</div>
-                        {it.location && <div className="text-sm text-neutral-600">{it.location}</div>}
-                        {it.notes && <div className="text-sm text-neutral-700 mt-1">{it.notes}</div>}
+                        {it.location && <div className="text-sm ">{it.location}</div>}
+                        {it.notes && <div className="text-sm  mt-1">{it.notes}</div>}
                       </div>
-                      <div className="text-sm text-neutral-600 whitespace-nowrap">
+                      <div className="text-sm  whitespace-nowrap">
                         {new Intl.DateTimeFormat(undefined,
                           { timeStyle: "short", timeZone: event.timezone }).format(it.start)}
                         {it.end ? ` – ${new Intl.DateTimeFormat(undefined, { timeStyle: "short", timeZone: event.timezone }).format(it.end)}` : ""}
@@ -119,7 +122,7 @@ export default async function EventPage() {
 
     <div className="card p-8">
   <h2 className="text-xl font-semibold mb-2">Getting There & Details</h2>
-  <div className="text-neutral-700 space-y-4">
+  <div className=" space-y-4">
     {/* Travel Info */}
     <div>
       <h3 className="font-medium">Travel & Parking</h3>

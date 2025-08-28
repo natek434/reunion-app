@@ -37,11 +37,11 @@ export default function LinkToPerson({
     <div className="grid gap-3">
       <div className="flex items-center justify-between">
         {current ? (
-          <div className="text-sm text-neutral-700">
+          <div className="text-sm">
             Currently linked to: <strong>{current.displayName}</strong>
           </div>
         ) : (
-          <div className="text-sm text-neutral-500">Not linked yet.</div>
+          <div className="text-sm">Not linked yet.</div>
         )}
         {current && (
           <button className="btn" onClick={unlink} disabled={busy}>
@@ -62,7 +62,7 @@ export default function LinkToPerson({
         <button className="btn btn-primary" onClick={link} disabled={!pick || busy}>
           Link
         </button>
-        {msg && <div className="text-sm text-neutral-600">{msg}</div>}
+        {msg && <div className="text-sm">{msg}</div>}
       </div>
     </div>
   );

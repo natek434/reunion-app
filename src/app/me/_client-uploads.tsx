@@ -86,7 +86,7 @@ export default function ClientUploads({ initial }: { initial: UploadItem[] }) {
       </div>
 
       {items.length === 0 ? (
-        <p className="text-neutral-600">You have no uploads yet.</p>
+        <p className="">You have no uploads yet.</p>
       ) : (
         <ul className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {items.map((it) => {
@@ -110,7 +110,7 @@ export default function ClientUploads({ initial }: { initial: UploadItem[] }) {
                         // controls // (omit controls in grid to keep it clean)
                       />
                     ) : (
-                      <div className="w-full h-48 grid place-items-center text-sm text-neutral-600">
+                      <div className="w-full h-48 grid place-items-center text-sm ">
                         {it.name}
                       </div>
                     )}

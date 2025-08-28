@@ -9,6 +9,7 @@ import HeaderAuth from "@/components/header-auth";
 const NAV_ITEMS = [
   { href: "/", label: "Home" },
   { href: "/event", label: "Event" },
+  { href: "/family", label: "Whakapapa" },
   { href: "/gallery", label: "Gallery" },
   { href: "/dashboard", label: "Upload" },
 ];
@@ -57,7 +58,7 @@ export default function MobileNav() {
             aria-controls="mobile-menu"
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/5 text-white/90 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 md:hidden"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full aspect-square border border-white/20 bg-white/5 text-white/90 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 md:hidden"
           >
             <span className="sr-only">Toggle menu</span>
             <svg

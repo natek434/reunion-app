@@ -58,7 +58,7 @@
   --border: #e2e8f0;              /* slate-200 */
   --ring: #3b82f6;                /* blue-500 */
 
-  --primary: #1d4ed8;             /* blue-700 */
+  --primary: #b2bdde;             /* blue-700 */
   --primary-foreground: #ffffff;
 
   --accent: #8b5cf6;              /* violet-500 */
@@ -162,6 +162,7 @@ header, main, footer { position: relative; z-index: 1; }
   }
   .btn:hover {
     background-color: rgba(245, 245, 245, 0.7); /* neutral-100/70 */
+    color: var(--foreground);
 }
 
 .btn-primary {

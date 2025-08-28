@@ -17,7 +17,7 @@ export const authOptions: NextAuthOptions = {
     }),
     Credentials({
       name: "Credentials",
-      credentials: { email: {}, password: {} },
+      credentials: { email: {label: "email", type: "text"}, password: {label: "password", type: "password"} },
       async authorize(creds) {
         const email = String(creds?.email || "");
         const password = String(creds?.password || "");
@@ -119,6 +119,9 @@ export const authOptions: NextAuthOptions = {
 
       return session;
     },
+  },
+  pages: {
+    signIn: "/signin",
   },
   secret: process.env.NEXTAUTH_SECRET!,
 };

@@ -181,7 +181,7 @@ export default function AlbumClient({ albumId }: { albumId: string }) {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold">{albumName || "Album"}</h1>
-            <p className="text-neutral-600">
+            <p className="">
               {slides.length} items • {images.length} images • {videos.length} videos
             </p>
           </div>
@@ -228,7 +228,7 @@ export default function AlbumClient({ albumId }: { albumId: string }) {
           <div className="max-h-[360px] overflow-auto border rounded-xl">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-neutral-500">
+                <tr className="text-left ">
                   <th className="p-2 w-10">
                     <input
                       aria-label="toggle all"
@@ -266,7 +266,7 @@ export default function AlbumClient({ albumId }: { albumId: string }) {
                 ))}
                 {gallery.length === 0 && (
                   <tr>
-                    <td className="p-4 text-neutral-500" colSpan={4}>
+                    <td className="p-4 " colSpan={4}>
                       No uploads yet.
                     </td>
                   </tr>
@@ -316,7 +316,7 @@ export default function AlbumClient({ albumId }: { albumId: string }) {
           <div className="max-h-[360px] overflow-auto border rounded-xl">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-neutral-500">
+                <tr className="text-left ">
                   <th className="p-2 w-10">
                     <input
                       aria-label="toggle all slides"
@@ -372,7 +372,7 @@ export default function AlbumClient({ albumId }: { albumId: string }) {
                 ))}
                 {slides.length === 0 && (
                   <tr>
-                    <td className="p-4 text-neutral-500" colSpan={4}>
+                    <td className="p-4 " colSpan={4}>
                       No items yet.
                     </td>
                   </tr>

@@ -18,7 +18,7 @@ export default async function FamilyPage() {
       <div className="card p-4 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Family Admin</h1>
-          <p className="text-neutral-600 text-sm">Add members, link parents & spouses, manage locks/deletes.</p>
+          <p className=" text-sm">Add members, link parents & spouses, manage locks/deletes.</p>
         </div>
         <Link href="/tree" className="btn">View Tree</Link>  {/* ← button to tree */}
       </div>

@@ -129,7 +129,7 @@ export default function PersonPicker({
 
   return (
     <div className={`grid gap-1 ${className}`}>
-      <label className="text-xs text-neutral-500">{label}</label>
+      <label className="text-xs ">{label}</label>
 
       <div ref={wrapRef} className="relative">
         <div className="flex gap-2">
@@ -165,7 +165,7 @@ export default function PersonPicker({
                 }`}
               >
                 <div className="font-medium">{o.displayName}</div>
-                <div className="text-xs text-neutral-500">
+                <div className="text-xs ">
                   {o.gender ?? ""} {o.birthDate ? `• ${new Date(o.birthDate).toLocaleDateString()}` : ""}
                 </div>
               </button>
@@ -184,7 +184,7 @@ export default function PersonPicker({
             )}
 
             {opts.length === 0 && !showCreate && (
-              <div className="px-3 py-2 text-sm text-neutral-500">No matches</div>
+              <div className="px-3 py-2 text-sm ">No matches</div>
             )}
           </div>
         )}

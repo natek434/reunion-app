@@ -119,7 +119,7 @@ export default function ProfileClient({
             <Image src={image} alt="" width={36} height={36} className="h-16 w-16 rounded-full object-cover border" />
           ) : (
             <div className="h-16 w-16 rounded-full bg-neutral-200 grid place-items-center border">
-              <span className="text-neutral-600 text-xl">
+              <span className=" text-xl">
                 {(name || email).charAt(0).toUpperCase()}
               </span>
             </div>
@@ -144,12 +144,12 @@ export default function ProfileClient({
         </div>
 
         <label className="block">
-          <div className="text-sm text-neutral-600 mb-1">Display name</div>
+          <div className="text-sm mb-1">Display name</div>
           <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
         </label>
 
         <label className="block">
-          <div className="text-sm text-neutral-600 mb-1">Email</div>
+          <div className="text-sm mb-1">Email</div>
           <input className="input opacity-70" value={email} disabled />
         </label>
 
@@ -172,7 +172,7 @@ export default function ProfileClient({
             </button>
           </form>
         ) : (
-          <p className="text-neutral-500 text-sm">
+          <p className=" text-sm">
             You’re signed in with a provider ({providers.join(", ") || "none"}). To add a password, contact an admin or
             add a “credentials” flow later.
           </p>

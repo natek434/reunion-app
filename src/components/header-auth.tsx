@@ -13,7 +13,7 @@ export default function HeaderAuth() {
 
   if (!session?.user) {
     return (
-      <button className="btn btn-primary" onClick={() => signIn("google")}>
+      <button className="btn btn-primary" onClick={() => signIn("/signin")}>
         Sign in
       </button>
     );
@@ -31,12 +31,19 @@ export default function HeaderAuth() {
 
 <Image
   src={avatar}
-  alt="Profile"
-  width={36}                // required
-  height={36}               // required
-  className="h-9 w-9 rounded-full ring-2 ring-white/20 object-cover"
+  width={36}              // required
+  height={36}              // required
+  alt="Profile"            // required
+  className="h-auto w-auto rounded-full aspect-square ring-2 ring-white/20 object-cover"
   referrerPolicy="no-referrer"
   // unoptimized // uncomment if remotePatterns not configured
+   style={{
+    minWidth: '36px',
+    minHeight: '36px',
+    maxWidth: '36px',
+    maxHeight: '36px',
+    flexShrink: 0, // prevent shrinking in flex layouts
+  }}
 />
 
         ) : (

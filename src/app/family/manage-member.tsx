@@ -98,7 +98,7 @@ export default function ManageMember({
         )}
       </div>
 
-      <p className="text-xs text-neutral-500">
+      <p className="text-xs ">
         Delete is <strong>soft</strong>: the person is hidden from the graph, and their links are removed.
         Admins can restore from the database (or add a restore UI later).
       </p>

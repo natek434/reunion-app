@@ -145,6 +145,13 @@ export default function ProfileMenuModal({
           >
             Account
           </Link>
+          <Link
+            href="/members/new"
+            className="block px-5 py-2.5 text-sm text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-white/10"
+            onClick={onClose}
+          >
+            Create Member
+          </Link>
         </nav>
 
         {/* Admin section */}

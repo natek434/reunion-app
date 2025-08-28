@@ -50,14 +50,14 @@ export default function LinkPersonCard({ current }: { current?: { id: string; di
         {current ? <button className="btn" onClick={unlink} disabled={busy}>Unlink</button> : null}
       </div>
 
-      <div className="text-sm text-neutral-600">
+      <div className="text-sm ">
         {current
           ? <>Currently linked to: <strong>{current.displayName}</strong></>
           : <>Not linked yet. Link your account to a Person to show as <em>“Me”</em> in the tree.</>}
       </div>
 
       <div className="grid gap-2">
-        <label className="text-xs text-neutral-500">Link existing member</label>
+        <label className="text-xs ">Link existing member</label>
         <div className="flex gap-2">
           <input className="input" placeholder="Search members…" value={q} onChange={e => setQ(e.target.value)} />
           <button className="btn" disabled={!pick} onClick={() => pick && link(pick.id)}>Link</button>
@@ -71,7 +71,7 @@ export default function LinkPersonCard({ current }: { current?: { id: string; di
         </div>
       </div>
 
-      {msg && <div className="text-sm text-neutral-600">{msg}</div>}
+      {msg && <div className="text-sm ">{msg}</div>}
     </div>
   );
 }

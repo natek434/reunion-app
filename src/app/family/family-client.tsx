@@ -154,7 +154,7 @@ function GraphCanvas({
       <div className="absolute z-10 right-3 top-3 flex items-center gap-2">
         {canEdit && (
           <>
-            <label className="text-sm text-neutral-600">Link as</label>
+            <label className="text-sm ">Link as</label>
             <select
               className="input"
               value={linkKind}
@@ -274,7 +274,7 @@ function ManageMember({
         )}
       </div>
 
-      <p className="text-xs text-neutral-500">
+      <p className="text-xs ">
         Delete is <strong>soft</strong>: the person is hidden from the graph, and their links are removed. Admins can
         restore later.
       </p>
@@ -564,7 +564,7 @@ export default function FamilyClient() {
               </button>
             </div>
 
-            <p className="text-xs text-neutral-500 mt-1">
+            <p className="text-xs  mt-1">
               Tip: Click an edge in the graph to remove it. Whāngai links render as dashed amber lines.
             </p>
           </section>
@@ -622,7 +622,7 @@ export default function FamilyClient() {
               Compute
             </button>
             {rel && (
-              <span className="text-sm text-neutral-700 self-center">
+              <span className="text-sm  self-center">
                 Result: <strong>{rel}</strong>
               </span>
             )}

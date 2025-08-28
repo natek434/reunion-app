@@ -22,13 +22,13 @@ export default async function AlbumsPage() {
     <div className="grid gap-6">
       <div className="card p-6">
         <h1 className="text-2xl font-bold">My Albums</h1>
-        <p className="text-neutral-600">Create albums from your uploads and run a fullscreen slideshow.</p>
+        <p className="">Create albums from your uploads and run a fullscreen slideshow.</p>
       </div>
 
       <NewAlbumForm />
 
       {!albums.length ? (
-        <div className="card p-6 text-neutral-600">No albums yet. Create your first above.</div>
+        <div className="card p-6 ">No albums yet. Create your first above.</div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {albums.map(a => (

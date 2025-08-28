@@ -1,10 +1,15 @@
 // src/app/api/members/search/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const q = (searchParams.get("q") || "").trim();
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) return new Response("Unauthorized", { status: 401 });
+  
 
   const rows = await prisma.person.findMany({
     where: q

@@ -104,7 +104,7 @@ export default function MemberForm() {
         <button className="btn btn-primary" onClick={submit} disabled={busy}>
           {busy ? "Creating…" : "Create member"}
         </button>
-        {msg && <span className="text-sm text-neutral-600">{msg}</span>}
+        {msg && <span className="text-sm ">{msg}</span>}
       </div>
     </div>
   );

@@ -10,12 +10,12 @@ export default async function Home() {
       {/* Welcome / CTA */}
       <div className="card p-8">
         <h1 className="text-3xl font-bold mb-3">Kia ora — welcome to our reunion!</h1>
-        <p className="text-neutral-600 leading-relaxed">
+        <p className=" leading-relaxed">
           Nau mai, haere mai ki <strong>Rangi and Rarati Hanara Reunion</strong> 2025. 
           A time to reconnect, celebrate whakapapa, and create new memories together.
         </p>
 
-        <p className="text-neutral-500 mt-3">
+        <p className=" mt-3">
           {session?.user ? (
             <>
               You’re signed in as{" "}
@@ -73,7 +73,7 @@ export default async function Home() {
       {/* What you can do */}
       <div className="card p-8">
         <h2 className="text-xl font-semibold mb-3">What you can do</h2>
-        <ul className="list-disc ml-5 space-y-2 text-neutral-600">
+        <ul className="list-disc ml-5 space-y-2">
           <li>Sign in with Google or email/password</li>
           <li>Upload images & videos (stored privately in Google Drive)</li>
           <li>Browse and comment in the private family gallery</li>
@@ -86,7 +86,7 @@ export default async function Home() {
         {/* Quick highlights */}
         <div className="mt-6">
           <h3 className="font-medium text-lg mb-2">Highlights of the weekend</h3>
-          <p className="text-neutral-500">
+          <p className="">
             Games and activities for tamariki, shared kai including a hāngi, 
             whakapapa storytelling, photo day, and plenty of time to catch up 
             with whānau from near and far.

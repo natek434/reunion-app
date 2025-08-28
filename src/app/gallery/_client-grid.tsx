@@ -93,7 +93,7 @@ export default function GalleryGrid({
   return (
     <>
       {items.length === 0 ? (
-        <p className="text-neutral-600">No uploads yet.</p>
+        <p className="">No uploads yet.</p>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {windowedItems.map((it) => {
@@ -129,7 +129,7 @@ export default function GalleryGrid({
                       controls
                     />
                   ) : (
-                    <div className="absolute inset-0 grid place-items-center text-sm text-neutral-600">
+                    <div className="absolute inset-0 grid place-items-center text-sm ">
                       Unsupported: {it.mimeType}
                     </div>
                   )}
@@ -162,9 +162,9 @@ export default function GalleryGrid({
       {/* infinite scroll sentinel */}
       <div ref={sentinelRef} className="h-8" />
 
-      {loading && <div className="text-sm text-neutral-500">Loading…</div>}
+      {loading && <div className="text-sm ">Loading…</div>}
       {!cursor && items.length > 0 && (
-        <div className="text-sm text-neutral-500 mt-2">End of gallery</div>
+        <div className="text-sm  mt-2">End of gallery</div>
       )}
 
       {/* floating jump buttons */}

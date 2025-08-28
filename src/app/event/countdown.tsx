@@ -1,30 +1,50 @@
 "use client";
 import { useEffect, useState } from "react";
 
-export default function Countdown({ to }: { to: string }) {
-  const target = new Date(to).getTime();
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
-  const diff = Math.max(0, target - now);
-  const s = Math.floor(diff / 1000);
-  const days = Math.floor(s / 86400);
-  const hours = Math.floor((s % 86400) / 3600);
-  const minutes = Math.floor((s % 3600) / 60);
-  const seconds = s % 60;
+function parts(ms: number) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return { d, h, m, s: sec };
+}
+
+export default function Countdown({
+  toEpochMs,
+  serverNowEpochMs,
+}: { toEpochMs: number; serverNowEpochMs: number }) {
+  // initialize with the server snapshot so SSR + first client paint match
+  const [now, setNow] = useState(serverNowEpochMs);
+
+  useEffect(() => {
+    // after mount, switch to live time
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const diff = Math.max(0, toEpochMs - now);
+  const { d, h, m, s } = parts(diff);
 
   return (
-    <div className="grid grid-flow-col gap-3 text-center auto-cols-max">
-      {[
-        ["Days", days],
-        ["Hours", hours],
-        ["Min", minutes],
-        ["Sec", seconds],
-      ].map(([label, val]) => (
-        <div key={label} className="card px-3 py-4">
-          <div className="text-2xl font-semibold tabular-nums">{val as number}</div>
-          <div className="text-xs text-neutral-500">{label}</div>
-        </div>
-      ))}
+    <div className="grid grid-cols-4 gap-3">
+      <div className="card px-3 py-2 text-center">
+        <div className="text-2xl font-semibold tabular-nums" suppressHydrationWarning>{d}</div>
+        <div className="text-xs opacity-70">days</div>
+      </div>
+      <div className="card px-3 py-2 text-center">
+        <div className="text-2xl font-semibold tabular-nums" suppressHydrationWarning>{h}</div>
+        <div className="text-xs opacity-70">hours</div>
+      </div>
+      <div className="card px-3 py-2 text-center">
+        <div className="text-2xl font-semibold tabular-nums" suppressHydrationWarning>{m}</div>
+        <div className="text-xs opacity-70">mins</div>
+      </div>
+      <div className="card px-3 py-2 text-center">
+        <div className="text-2xl font-semibold tabular-nums" suppressHydrationWarning>{s}</div>
+        <div className="text-xs opacity-70">secs</div>
+      </div>
     </div>
   );
 }
