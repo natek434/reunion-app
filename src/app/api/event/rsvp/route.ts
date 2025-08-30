@@ -2,8 +2,11 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { withCsrf } from "@/lib/csrf-server";
 
-export async function POST(req: Request) {
+export const runtime = "nodejs";
+
+export const POST = withCsrf(async (req: Request): Promise<Response> => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -21,6 +24,5 @@ export async function POST(req: Request) {
     update: { status: status as any, guests, note },
     create: { eventId, userId: (session.user).id, status: status as any, guests, note },
   });
-
   return NextResponse.json({ ok: true, rsvp });
-}
+});

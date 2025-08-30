@@ -1,38 +1,38 @@
-// src/app/api/albums/[id]/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { withCsrf } from "@/lib/csrf-server";
 
 export const runtime = "nodejs";
+
 const unauthorized = () => NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 const notFound = () => NextResponse.json({ error: "Not found" }, { status: 404 });
 const forbidden = () => NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
 type Params = Promise<{ id: string }>;
 
-export async function DELETE(_: Request, { params }: { params: Params }) {
-  const { id } = await params;                     // <-- await the Promise
+export const DELETE = withCsrf<{ params: Params }>(async (_req: Request, { params }): Promise<Response> => {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   const userId = (session?.user)?.id;
   if (!userId) return unauthorized();
 
   const alb = await prisma.album.findUnique({
-    where: { id: id },
+    where: { id },
     select: { createdById: true },
   });
   if (!alb) return notFound();
   if (alb.createdById !== userId) return forbidden();
 
-  // Cascades will remove AlbumItem rows; uploaded media stays in user gallery.
-  await prisma.album.delete({ where: { id: id } });
+  await prisma.album.delete({ where: { id } });
   return NextResponse.json({ ok: true });
-}
+});
 
 export async function GET(_: Request, { params }: { params: Params }) {
   const session = await getServerSession(authOptions);
   const userId = (session?.user)?.id;
-  const { id } = await params;                     // <-- await the Promise
+  const { id } = await params;
   if (!userId) return unauthorized();
 
   const album = await prisma.album.findFirst({
@@ -54,7 +54,5 @@ export async function GET(_: Request, { params }: { params: Params }) {
     src: `/api/files/${it.media.id}`,
   }));
 
-  return NextResponse.json({
-    album: { id: album.id, name: album.name, description: album.description, slides },
-  });
+  return NextResponse.json({ album: { id: album.id, name: album.name, description: album.description, slides } });
 }

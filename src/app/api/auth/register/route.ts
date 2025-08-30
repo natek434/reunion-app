@@ -2,14 +2,17 @@ import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { NextResponse } from "next/server";
+import { withCsrf } from "@/lib/csrf-server";
 
 const schema = z.object({
   name: z.string().min(1),
-  email: z.email(),
+  email: z.string().email(),
   password: z.string().min(7),
 });
 
-export async function POST(req: Request) {
+export const runtime = "nodejs";
+
+export const POST = withCsrf(async (req: Request): Promise<Response> => {
   const data = await req.json();
   const parsed = schema.safeParse(data);
   if (!parsed.success) return NextResponse.json({ error: "Invalid" }, { status: 400 });
@@ -20,6 +23,5 @@ export async function POST(req: Request) {
 
   const passwordHash = await bcrypt.hash(password, 12);
   await prisma.user.create({ data: { name, email, passwordHash } });
-
   return NextResponse.json({ ok: true });
-}
+});

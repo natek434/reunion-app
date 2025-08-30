@@ -1,15 +1,16 @@
-// app/api/family/link/parent/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { withCsrf } from "@/lib/csrf-server";
 
 type Kind = "BIOLOGICAL" | "WHANGAI";
 
-// OPTIONAL: force dynamic to avoid caching oddities
+// avoid caching oddities
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
-export async function POST(req: Request) {
+export const POST = withCsrf(async (req: Request): Promise<Response> => {
   const session = await getServerSession(authOptions);
   const userRole = (session?.user as any)?.role;
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -30,7 +31,9 @@ export async function POST(req: Request) {
     prisma.person.findFirst({ where: { id: childId, deletedAt: null } }),
   ]);
   if (!p || !c) return NextResponse.json({ error: "Person not found" }, { status: 404 });
-  if ((p.locked || c.locked) && userRole !== "ADMIN") return NextResponse.json({ error: "Locked person (admin only)" }, { status: 403 });
+  if ((p.locked || c.locked) && userRole !== "ADMIN") {
+    return NextResponse.json({ error: "Locked person (admin only)" }, { status: 403 });
+  }
 
   if (parentRole === "MOTHER" && p.gender !== "FEMALE") {
     return NextResponse.json({ error: "Selected mother is not FEMALE" }, { status: 400 });
@@ -42,7 +45,6 @@ export async function POST(req: Request) {
   await prisma.$transaction(async (tx) => {
     await tx.parentChild.deleteMany({ where: { childId, kind: parentKind, role: parentRole } });
     await tx.parentChild.upsert({
-      // requires @@unique([parentId, childId, kind]) in Prisma
       where: { parentId_childId_kind: { parentId, childId, kind: parentKind } },
       update: { role: parentRole },
       create: { parentId, childId, role: parentRole, kind: parentKind },
@@ -50,9 +52,9 @@ export async function POST(req: Request) {
   });
 
   return NextResponse.json({ ok: true });
-}
+});
 
-export async function DELETE(req: Request) {
+export const DELETE = withCsrf(async (req: Request): Promise<Response> => {
   const session = await getServerSession(authOptions);
   const userRole = (session?.user as any)?.role;
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -85,4 +87,4 @@ export async function DELETE(req: Request) {
   });
 
   return NextResponse.json({ ok: true });
-}
+});

@@ -1,13 +1,14 @@
-// src/app/api/family/person/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { withCsrf } from "@/lib/csrf-server";
 
-export async function POST(req: Request) {
-  // Auth
+export const runtime = "nodejs";
+
+export const POST = withCsrf(async (req: Request): Promise<Response> => {
   const session = await getServerSession(authOptions);
-  let userId = (session?.user)?.id as string | undefined;
+  let userId = session?.user?.id as string | undefined;
   let role = (session?.user)?.role as "ADMIN" | "EDITOR" | "MEMBER" | undefined;
 
   if (!userId && session?.user?.email) {
@@ -25,7 +26,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Parse
   let payload: any = {};
   try { payload = await req.json(); } catch {}
   const firstName = String(payload.firstName || "").trim();
@@ -40,15 +40,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid gender" }, { status: 400 });
   }
 
-  // Create
   try {
     const person = await prisma.person.create({
       data: { firstName, lastName, gender, birthDate: birthDate || undefined },
       select: { id: true, firstName: true, lastName: true, gender: true },
     });
     return NextResponse.json({ ok: true, person });
-  } catch (e: any) {
+  } catch (e) {
     console.error("Create person error:", e);
     return NextResponse.json({ error: "Failed to create person" }, { status: 500 });
   }
-}
+});

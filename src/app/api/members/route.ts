@@ -1,22 +1,25 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/authz";
+import { withCsrf } from "@/lib/csrf-server";
 
-export async function POST(req: Request) {
+export const runtime = "nodejs";
+
+export const POST = withCsrf(async (req: Request): Promise<Response> => {
   const session = await requireSession();
   const body = await req.json();
 
   const {
     firstName,
     lastName,
-    gender,            // "MALE" | "FEMALE" | "OTHER" | "UNKNOWN"
-    birthDate,         // ISO or null
+    gender,
+    birthDate,
     notes,
     imageUrl,
-    linkMotherId,      // optional Person.id
-    linkFatherId,      // optional Person.id
-    linkChildId,       // optional Person.id (this new person as parent)
-    linkKind = "BIOLOGICAL", // "BIOLOGICAL" | "WHANGAI"
+    linkMotherId,
+    linkFatherId,
+    linkChildId,
+    linkKind = "BIOLOGICAL",
   } = body;
 
   if (!firstName) {
@@ -32,7 +35,7 @@ export async function POST(req: Request) {
       birthDate: birthDate ? new Date(birthDate) : null,
       notes,
       imageUrl,
-      createdById: session.user.id, // REQUIRED by your schema
+      createdById: session.user.id,
     },
     select: { id: true, gender: true },
   });
@@ -45,14 +48,12 @@ export async function POST(req: Request) {
     role: "MOTHER",
     kind: linkKind,
   });
-
   if (linkFatherId) edges.push({
     parentId: linkFatherId,
     childId: person.id,
     role: "FATHER",
     kind: linkKind,
   });
-
   if (linkChildId) edges.push({
     parentId: person.id,
     childId: linkChildId,
@@ -61,9 +62,8 @@ export async function POST(req: Request) {
   });
 
   if (edges.length) {
-    // ignore duplicates quietly due to your unique constraints
     await prisma.parentChild.createMany({ data: edges, skipDuplicates: true });
   }
 
   return NextResponse.json({ personId: person.id }, { status: 201 });
-}
+});

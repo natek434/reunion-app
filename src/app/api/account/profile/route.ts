@@ -3,14 +3,11 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { z } from "zod";
+import { withCsrf } from "@/lib/csrf-server";
 
-// ---------- helpers ----------
 const isProd = process.env.NODE_ENV === "production";
-
-// Map "" -> undefined so empty strings don't trip validation unnecessarily
 const emptyToUndef = (v: unknown) =>
   typeof v === "string" && v.trim() === "" ? undefined : v;
-
 function getAllowedHosts() {
   const set = new Set<string>([
     "lh3.googleusercontent.com",
@@ -20,12 +17,11 @@ function getAllowedHosts() {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "";
   try {
     if (appUrl) set.add(new URL(appUrl).hostname);
-  } catch { /* ignore malformed URL */ }
+  } catch {}
   return set;
 }
-
 function isAllowedImageUrl(value: string) {
-  if (value.startsWith("/")) return true; // allow app-relative e.g. /api/files/:id
+  if (value.startsWith("/")) return true;
   try {
     const u = new URL(value);
     if (u.protocol !== "http:" && u.protocol !== "https:") return false;
@@ -34,21 +30,19 @@ function isAllowedImageUrl(value: string) {
     return false;
   }
 }
-
-// Accept either (a) absolute http(s) URL from allowed hosts, (b) app-relative path, or (c) null (clear)
 const imageField = z.union([
   z.string().trim().refine(isAllowedImageUrl, "Image must be /api/files/:id or an allowed host URL"),
-  z.null(), // explicit clear
+  z.null(),
 ]);
-
 const schema = z.object({
   name: z.preprocess(emptyToUndef, z.string().trim().max(120).optional()),
-  // preprocess: "" -> undefined, but allow explicit null to clear
   image: z.preprocess(
     (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
     imageField.optional()
   ),
 });
+
+export const runtime = "nodejs";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -61,11 +55,11 @@ export async function GET() {
   });
   return NextResponse.json({
     name: user?.name ?? null,
-    image: typeof user?.image !== "undefined" ? user.image : null, // null if cleared
+    image: typeof user?.image !== "undefined" ? user.image : null,
   });
 }
 
-export async function PATCH(req: Request) {
+export const PATCH = withCsrf(async (req: Request): Promise<Response> => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -80,15 +74,12 @@ export async function PATCH(req: Request) {
       { status: 400 },
     );
   }
-
   const { name, image } = parsed.data;
   if (typeof name === "undefined" && typeof image === "undefined") {
     return NextResponse.json({ error: "No changes provided" }, { status: 400 });
   }
-
   const data: Record<string, unknown> = {};
   if (typeof name !== "undefined") data.name = name;
-  // image may be string or null (clear)
   if (typeof image !== "undefined") data.image = image;
 
   const user = await prisma.user.update({
@@ -96,6 +87,5 @@ export async function PATCH(req: Request) {
     data,
     select: { id: true },
   });
-
   return NextResponse.json({ ok: true, id: user.id });
-}
+});

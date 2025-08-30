@@ -1,10 +1,10 @@
-// src/app/api/albums/[id]/order/route.ts
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { z } from "zod";
+import { withCsrf } from "@/lib/csrf-server";
 
 export const runtime = "nodejs";
 
@@ -22,12 +22,10 @@ async function ensureOwner(albumId: string, userId: string) {
   return !!a;
 }
 
-const bodySchema = z.object({
-  order: z.array(z.string().min(1)).min(1),
-});
+const bodySchema = z.object({ order: z.array(z.string().min(1)).min(1) });
 
-export async function PATCH(req: NextRequest, { params }: { params: Params }) {
-  const { id } = await params;                     // ← params is a Promise in Next 15
+export const PATCH = withCsrf<{ params: Params }>(async (req: NextRequest, { params }): Promise<Response> => {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
   if (!userId) return unauthorized();
@@ -37,7 +35,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Params }) {
   if (!parsed.success) return badRequest("order array required");
   const { order } = parsed.data;
 
-  // Ensure every albumItemId belongs to this album
   const existing = await prisma.albumItem.findMany({
     where: { id: { in: order }, albumId: id },
     select: { id: true },
@@ -56,4 +53,4 @@ export async function PATCH(req: NextRequest, { params }: { params: Params }) {
   );
 
   return NextResponse.json({ ok: true } as const);
-}
+});

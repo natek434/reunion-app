@@ -107,7 +107,7 @@ export default function ClientUploads({ initial }: { initial: UploadItem[] }) {
     width={640}
     height={320}
     className="w-full h-48 object-cover"
-    // unoptimized // (optional if you’re proxying/transforming already)
+    unoptimized // (optional if you’re proxying/transforming already)
   />
                     ) : isVideo ? (
                       <video

@@ -1,20 +1,22 @@
-// app/api/account/password/reset-request/route.ts
-export const runtime = "nodejs";
-
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { sendMail } from "@/lib/email";
-import { getBaseUrl } from "@/lib/base-url"; // from previous message
+import { getBaseUrl } from "@/lib/base-url";
 import { randomBytes, createHash } from "crypto";
+import { withCsrf } from "@/lib/csrf-server";
 
+export const runtime = "nodejs";
 const EXPIRY_MINUTES = 60;
 
-export async function POST(req: Request) {
+export const POST = withCsrf(async (req: Request): Promise<Response> => {
   const { email } = await req.json();
   const target = String(email || "").trim().toLowerCase();
   if (!target) return NextResponse.json({ ok: true });
 
-  const user = await prisma.user.findUnique({ where: { email: target }, select: { id: true, email: true } });
+  const user = await prisma.user.findUnique({
+    where: { email: target },
+    select: { id: true, email: true },
+  });
   if (!user) return NextResponse.json({ ok: true });
 
   await prisma.passwordReset.deleteMany({ where: { userId: user.id, usedAt: null } });
@@ -34,4 +36,4 @@ export async function POST(req: Request) {
   });
 
   return NextResponse.json({ ok: true });
-}
+});

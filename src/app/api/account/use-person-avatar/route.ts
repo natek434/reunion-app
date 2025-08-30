@@ -1,12 +1,12 @@
-// src/app/api/account/use-person-avatar/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { withCsrf } from "@/lib/csrf-server";
 
 export const runtime = "nodejs";
 
-export async function POST() {
+export const POST = withCsrf(async (_req: Request): Promise<Response> => {
   const session = await getServerSession(authOptions);
   const email = session?.user?.email;
   const image = session?.user?.image || null;
@@ -26,4 +26,4 @@ export async function POST() {
   });
 
   return NextResponse.json({ ok: true, image });
-}
+});

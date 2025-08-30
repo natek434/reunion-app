@@ -1,10 +1,10 @@
-// src/app/api/albums/[id]/items/route.ts
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { z } from "zod";
+import { withCsrf } from "@/lib/csrf-server";
 
 export const runtime = "nodejs";
 
@@ -25,8 +25,8 @@ async function ensureOwner(albumId: string, userId: string) {
 /* ------------------------- POST: add items to album ------------------------- */
 const addBody = z.object({ galleryItemIds: z.array(z.string().min(1)).min(1) });
 
-export async function POST(req: NextRequest, { params }: { params: Params }) {
-  const { id } = await params;                    // <-- await the Promise
+export const POST = withCsrf<{ params: Params }>(async (req: NextRequest, { params }): Promise<Response> => {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
   if (!userId) return unauthorized();
@@ -59,13 +59,13 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
   );
 
   return NextResponse.json({ ok: true } as const);
-}
+});
 
 /* ---------------------- DELETE: remove one album item ---------------------- */
 const delBody = z.object({ albumItemId: z.string().min(1) });
 
-export async function DELETE(req: NextRequest, { params }: { params: Params }) {
-  const { id } = await params;                    // <-- await the Promise
+export const DELETE = withCsrf<{ params: Params }>(async (req: NextRequest, { params }): Promise<Response> => {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
   if (!userId) return unauthorized();
@@ -75,7 +75,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Params }) {
   if (!parsed.success) return badRequest("albumItemId required");
   const { albumItemId } = parsed.data;
 
-  // Ensure the item belongs to this album before deleting
   const item = await prisma.albumItem.findUnique({
     where: { id: albumItemId },
     select: { albumId: true },
@@ -84,4 +83,4 @@ export async function DELETE(req: NextRequest, { params }: { params: Params }) {
 
   await prisma.albumItem.delete({ where: { id: albumItemId } });
   return NextResponse.json({ ok: true } as const);
-}
+});

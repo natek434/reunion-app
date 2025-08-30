@@ -1,7 +1,10 @@
+// app/event/RSVPClient.tsx
 "use client";
-import { useState } from "react";
+
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { ensureCsrfToken } from "@/lib/csrf"; // <-- your helper that may call /api/csrf
 
 export default function RSVPClient({
   eventId,
@@ -17,21 +20,46 @@ export default function RSVPClient({
   const [guests, setGuests] = useState(initialGuests);
   const [saving, setSaving] = useState(false);
 
-  async function save(next: "YES" | "NO" | "PENDING") {
+  // Optional: warm the CSRF token on mount so first click doesn’t need the extra round-trip
+  useEffect(() => {
+    void ensureCsrfToken().catch(() => {
+      /* ignore – we’ll try again on save */
+    });
+  }, []);
+
+  async function save(nextStatus: "YES" | "NO" | "PENDING") {
     try {
       setSaving(true);
+
+      // 🔐 Ensure token exists (helper will issue one if missing) and return it
+      const csrf = await ensureCsrfToken();
+      if (!csrf) {
+        toast.error("Missing CSRF token. Please refresh the page and try again.");
+        return;
+      }
+
       const res = await fetch("/api/event/rsvp", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventId, status: next, guests }),
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": csrf,
+        },
+        body: JSON.stringify({ eventId, status: nextStatus, guests }),
+        // credentials: "same-origin", // optional; same-origin is default
       });
 
-      if (!res.ok) throw new Error(await res.text());
-      setStatus(next);
+      if (!res.ok) {
+        const msg = await res.text().catch(() => "");
+        throw new Error(msg || "Request failed");
+      }
+
+      setStatus(nextStatus);
       toast.success("RSVP updated");
       router.refresh(); // refresh server components that read RSVP from DB
     } catch (err: any) {
-      toast.error("Failed to save RSVP", { description: err?.message?.slice(0, 160) });
+      toast.error("Failed to save RSVP", {
+        description: String(err?.message || "").slice(0, 160),
+      });
     } finally {
       setSaving(false);
     }
@@ -64,13 +92,15 @@ export default function RSVPClient({
       </div>
 
       <div className="flex items-center gap-2">
-        <label className="text-sm ">Guests (not including you):</label>
+        <label className="text-sm">Guests (not including you):</label>
         <input
           type="number"
           min={0}
           className="input max-w-24"
           value={guests}
-          onChange={(e) => setGuests(Math.max(0, Number(e.currentTarget.value) || 0))}
+          onChange={(e) =>
+            setGuests(Math.max(0, Number(e.currentTarget.value) || 0))
+          }
           disabled={saving}
         />
         <button className="btn" onClick={() => save(status)} disabled={saving}>

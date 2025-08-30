@@ -1,50 +1,57 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireSession, canEditPerson } from "@/lib/authz";
+import { requireSession, isAdmin } from "@/lib/authz";
+import { withCsrf } from "@/lib/csrf-server";
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export const runtime = "nodejs";
+
+export const PATCH = withCsrf(async (req: Request, { params }: { params: { id: string } }): Promise<Response> => {
   const session = await requireSession();
+  const id = params.id;
+  const body = await req.json().catch(() => ({}));
+  const { firstName, lastName, gender, birthDate, notes, imageUrl } = body;
+
   const person = await prisma.person.findUnique({
-    where: { id: params.id },
-    select: { id: true, createdById: true },
+    where: { id, deletedAt: null },
+    select: { createdById: true },
   });
-  if (!person || !canEditPerson(session, person.createdById)) {
+  if (!person) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!isAdmin(session) && person.createdById !== session.user.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const body = await req.json();
-  const { firstName, lastName, gender, birthDate, notes, imageUrl, locked } = body;
-
   await prisma.person.update({
-    where: { id: params.id },
+    where: { id },
     data: {
       firstName,
       lastName,
       displayName: [firstName, lastName].filter(Boolean).join(" "),
       gender,
-      birthDate: birthDate ? new Date(birthDate) : null,
+      birthDate: birthDate ? new Date(birthDate) : undefined,
       notes,
       imageUrl,
-      locked: typeof locked === "boolean" ? locked : undefined,
     },
   });
 
   return NextResponse.json({ ok: true });
-}
+});
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+export const DELETE = withCsrf(async (_req: Request, { params }: { params: { id: string } }): Promise<Response> => {
   const session = await requireSession();
+  const id = params.id;
+
   const person = await prisma.person.findUnique({
-    where: { id: params.id },
-    select: { id: true, createdById: true },
+    where: { id, deletedAt: null },
+    select: { createdById: true },
   });
-  if (!person || !canEditPerson(session, person.createdById)) {
+  if (!person) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!isAdmin(session) && person.createdById !== session.user.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Hard delete with cascading edges per your schema (onDelete: Cascade)
-  await prisma.parentChild.deleteMany({ where: { OR: [{ parentId: params.id }, { childId: params.id }] } });
-  await prisma.person.delete({ where: { id: params.id } });
-
+  await prisma.person.update({
+    where: { id },
+    data: { deletedAt: new Date() },
+  });
   return NextResponse.json({ ok: true });
-}
+});

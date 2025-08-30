@@ -1,21 +1,28 @@
 // middleware.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { readCsrfCookie, setCsrfCookie } from "@/lib/csrf"; // the Edge-safe helpers
 
-// middleware.ts
-const PROTECTED = ["/gallery", "/family", "/dashboard", "/me", "/account"];
-
+// Only base prefixes for auth-gating; CSRF cookie is handled for ALL GETs below
+const PROTECTED = ["/gallery", "/family", "/albums", "/dashboard", "/me", "/account"];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // only guard protected paths
-  if (PROTECTED.some((p) => pathname.startsWith(p))) {
+  // (A) Ensure CSRF cookie exists on every GET (site-wide)
+  if (req.method === "GET") {
+    const res = NextResponse.next();
+    const existing = readCsrfCookie(req);
+    if (!existing) setCsrfCookie(res); // sets SameSite=Lax; httpOnly=false; secure in prod
+    return res;
+  }
+
+  // (B) Auth-gate protected sections
+  if (PROTECTED.some((base) => pathname.startsWith(base))) {
+    const { getToken } = await import("next-auth/jwt");
     const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
     if (!token) {
       const signInUrl = new URL("/signin", req.url);
-      // send them back after sign-in
       signInUrl.searchParams.set("callbackUrl", req.url);
       return NextResponse.redirect(signInUrl);
     }
@@ -24,7 +31,9 @@ export async function middleware(req: NextRequest) {
   return NextResponse.next();
 }
 
-// Match subpaths too
 export const config = {
-  matcher: ["/gallery/:path*", "/family/:path*", "/albums/:path*",  "/dashboard/:path*", "/me/:path*", "/account/:path*"],
+  // Run on everything except static assets so all pages (incl. /event) get the CSRF cookie
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|site.webmanifest|sitemap.xml).*)",
+  ],
 };
