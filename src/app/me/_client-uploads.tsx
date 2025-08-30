@@ -100,8 +100,15 @@ export default function ClientUploads({ initial }: { initial: UploadItem[] }) {
               <li key={it.id} className="border rounded-xl overflow-hidden">
                 <label className="block cursor-pointer">
                   <div className="relative">
-                    {isImg ? (
-                      <img src={thumb} alt={it.name} className="w-full h-48 object-cover" loading="lazy" />
+                   {isImg && thumb ? (
+  <Image
+    src={thumb}
+    alt={it.name ?? ""}
+    width={640}
+    height={320}
+    className="w-full h-48 object-cover"
+    // unoptimized // (optional if you’re proxying/transforming already)
+  />
                     ) : isVideo ? (
                       <video
                         className="w-full h-48 object-cover"
