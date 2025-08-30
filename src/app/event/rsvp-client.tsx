@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ensureCsrfToken } from "@/lib/csrf"; // <-- your helper that may call /api/csrf
+import { ensureCsrfToken } from "@/lib/csrf-client"; // <-- your helper that may call /api/csrf
 
 export default function RSVPClient({
   eventId,
