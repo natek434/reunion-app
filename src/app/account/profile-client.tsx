@@ -3,12 +3,12 @@
 import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import Image from "next/image";
+import Avatar from "@/components/avatar"; // ensure casing matches file name
 
 type Props = {
   initialName: string;
   email: string;
-  initialImage: string;
+  initialImage: string; // custom avatar or ""
   hasPassword: boolean;
   providers: string[];
 };
@@ -20,20 +20,31 @@ export default function ProfileClient({
   hasPassword,
   providers,
 }: Props) {
-  const { update } = useSession();
+  const { data: session, update } = useSession();
+
+  // Form state
   const [name, setName] = useState(initialName);
-  const [image, setImage] = useState(initialImage); // string ("" means none in UI)
+  const [image, setImage] = useState(initialImage);
+
+  // Baselines that we control locally (so "No changes" works after first save)
+  const [lastSavedName, setLastSavedName] = useState(initialName);
+  const [lastSavedImage, setLastSavedImage] = useState(initialImage);
+
   const [saving, setSaving] = useState(false);
   const [pwBusy, setPwBusy] = useState(false);
 
-  async function saveProfile() {
-    const payload: Record<string, string | null> = {};
+  const providerImage = session?.user?.image || "";
 
+  async function saveProfile() {
     const trimmedName = name.trim();
-    if (trimmedName !== initialName) payload.name = trimmedName;
-    if (image !== initialImage) {
-      payload.image = image ? image : null;
-    }
+
+    // Compare vs last saved, not initial props
+    const nameChanged = trimmedName !== lastSavedName;
+    const imageChanged = image !== lastSavedImage;
+
+    const payload: Record<string, string | null> = {};
+    if (nameChanged) payload.name = trimmedName;
+    if (imageChanged) payload.image = image ? image : null; // DB: null clears custom avatar
 
     if (Object.keys(payload).length === 0) {
       toast.message("No changes");
@@ -49,10 +60,16 @@ export default function ProfileClient({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Update failed");
-      await update({
-        name: trimmedName,
-        image: image || "",
-      } as any);
+
+      // Do NOT clobber provider image: only set session.image if we actually have a custom image
+      const sessionUpdate: any = {};
+      if (nameChanged) sessionUpdate.name = trimmedName;
+      if (imageChanged && image) sessionUpdate.image = image;
+      if (Object.keys(sessionUpdate).length) await update(sessionUpdate);
+
+      // Update local baselines so subsequent saves work correctly
+      if (nameChanged) setLastSavedName(trimmedName);
+      if (imageChanged) setLastSavedImage(image);
 
       toast.success("Profile updated");
     } catch (e: any) {
@@ -115,15 +132,16 @@ export default function ProfileClient({
     <div className="mt-4 grid gap-6">
       <div className="grid gap-4">
         <div className="flex items-center gap-4">
-          {image ? (
-            <Image src={image} alt="" width={36} height={36} className="h-16 w-16 rounded-full object-cover border" />
-          ) : (
-            <div className="h-16 w-16 rounded-full bg-neutral-200 grid place-items-center border">
-              <span className=" text-xl">
-                {(name || email).charAt(0).toUpperCase()}
-              </span>
-            </div>
-          )}
+          <Avatar
+            customSrc={image}
+            providerSrc={providerImage}
+            name={name || email}
+            email={email}
+            size={48}
+            className="border ring-2 ring-white/20"
+            // If /api/files/* requires cookies or your remotePatterns aren't set:
+            unoptimized
+          />
 
           <div className="flex items-center gap-2">
             <label className="btn">
@@ -172,7 +190,7 @@ export default function ProfileClient({
             </button>
           </form>
         ) : (
-          <p className=" text-sm">
+          <p className="text-sm">
             You’re signed in with a provider ({providers.join(", ") || "none"}). To add a password, contact an admin or
             add a “credentials” flow later.
           </p>

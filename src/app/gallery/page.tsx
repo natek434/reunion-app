@@ -2,6 +2,8 @@ import { prisma } from "@/lib/db";
 import Link from "next/link";
 import GalleryGrid from "./_client-grid";
 
+export const dynamic = 'force-dynamic';
+
 function encodeCursor(d: Date, id: string) {
   return Buffer.from(`${d.toISOString()}::${id}`).toString("base64");
 }

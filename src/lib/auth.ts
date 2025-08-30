@@ -14,10 +14,15 @@ export const authOptions: NextAuthOptions = {
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       allowDangerousEmailAccountLinking: true,
+      // Always show the Google account chooser
+      authorization: { params: { prompt: "select_account" } },
     }),
     Credentials({
       name: "Credentials",
-      credentials: { email: {label: "email", type: "text"}, password: {label: "password", type: "password"} },
+      credentials: {
+        email: { label: "email", type: "text" },
+        password: { label: "password", type: "password" },
+      },
       async authorize(creds) {
         const email = String(creds?.email || "");
         const password = String(creds?.password || "");
@@ -30,38 +35,51 @@ export const authOptions: NextAuthOptions = {
           email: user.email!,
           name: user.name ?? undefined,
           role: user.role,
-          image: user.image ?? undefined,
+          image: user.image ?? undefined, // DB custom avatar if set
         } as any;
       },
     }),
   ],
   callbacks: {
     /**
-     * JWT runs at sign-in and on subsequent requests.
-     * We keep stable identifiers (id/role) and stash the provider picture as a fallback.
-     * We also listen for client-side useSession().update({ name, image }) to reflect instant changes.
+     * Store stable identifiers, plus keep BOTH images on the token:
+     * - token.customImage  (your DB avatar)
+     * - token.providerImage (Google profile picture)
+     *
+     * We also honor client-side useSession().update({ image, name }) when present.
      */
-    async jwt({ token, user, trigger, session }) {
-      // On first login, copy from user (DB-backed via adapter)
+    async jwt({ token, user, profile, trigger, session }) {
+      // On sign-in, capture core identity and images
       if (user) {
         token.id = (user as any).id;
         token.role = (user as any).role ?? "MEMBER";
-        // Stash provider/initial picture as fallback for later
-        token.picture = (user as any).image ?? (token as any).picture ?? null;
+
+        // Custom image from DB (may be string or undefined/null)
+        if (typeof (user as any).image !== "undefined") {
+          (token as any).customImage = (user as any).image ?? null;
+        }
+
+        // Provider image (e.g., Google -> profile.picture)
+        if (profile && typeof (profile as any).picture === "string") {
+          (token as any).providerImage = (profile as any).picture;
+        }
+
         if ((user as any).name) token.name = (user as any).name;
       }
 
-      // Support instant UI updates via useSession().update
+      // Client requested a session.update()
       if (trigger === "update" && session) {
-        if (typeof (session as any).image !== "undefined") {
-          token.picture = (session as any).image || null;
+        if (Object.prototype.hasOwnProperty.call(session, "image")) {
+          // If caller passes "", treat as clear; if they omit image entirely, do nothing
+          const next = (session as any).image;
+          (token as any).customImage = typeof next === "string" ? (next || null) : (token as any).customImage;
         }
         if (typeof (session as any).name !== "undefined") {
           token.name = (session as any).name || token.name;
         }
       }
 
-      // Hardening: if we somehow missed id/role (e.g. config change), look up by email
+      // Hardening: if we somehow missed id/role, look up by email
       if (!token.id && token.email) {
         const dbUser = await prisma.user.findUnique({
           where: { email: token.email as string },
@@ -70,7 +88,7 @@ export const authOptions: NextAuthOptions = {
         if (dbUser) {
           token.id = dbUser.id;
           token.role = dbUser.role;
-          token.picture = dbUser.image ?? (token as any).picture ?? null;
+          (token as any).customImage = dbUser.image ?? (token as any).customImage ?? null;
           if (dbUser.name) token.name = dbUser.name;
         }
       }
@@ -79,9 +97,10 @@ export const authOptions: NextAuthOptions = {
     },
 
     /**
-     * Session runs whenever /api/auth/session is fetched.
-     * We prefer the DB avatar every time (and respect null = cleared),
-     * falling back to the provider picture only if the DB field is truly unavailable.
+     * Build the session:
+     * - session.user.image prefers customImage then providerImage (fallback)
+     * - also expose both as session.user.customImage / providerImage
+     * - optionally refresh customImage/name from DB by id
      */
     async session({ session, token }) {
       if (session.user) {
@@ -89,6 +108,10 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).role = (token.role as any) ?? "MEMBER";
       }
 
+      let custom: string | null | undefined = (token as any).customImage ?? null;
+      let provider: string | null | undefined = (token as any).providerImage ?? null;
+
+      // If you want freshest DB avatar/name each time, keep this block (costs a DB read per session fetch)
       if (session.user && ((session.user as any).id || token.sub)) {
         const userId = (session.user as any).id || token.sub!;
         try {
@@ -97,25 +120,22 @@ export const authOptions: NextAuthOptions = {
             select: { image: true, name: true },
           });
 
-          const providerPicture = (token as any).picture ?? null;
-
-          // IMPORTANT: Prefer DB avatar, and if DB is explicitly null (cleared),
-          // do NOT fall back to provider — show initials in the UI.
           if (typeof dbUser?.image !== "undefined") {
-            (session.user as any).image = dbUser.image; // can be string or null
-          } else {
-            // Only when DB field is truly unavailable, use provider fallback
-            (session.user as any).image = providerPicture ?? (session.user as any).image ?? null;
+            custom = dbUser.image; // string or null
           }
-
-          // Optionally prefer DB name if present
           if (dbUser?.name) session.user.name = dbUser.name;
           else if ((token as any).name && !session.user.name) session.user.name = (token as any).name;
         } catch {
-          // If DB temporarily unavailable, fall back to provider picture
-          (session.user as any).image = (token as any).picture ?? (session.user as any).image ?? null;
+          // ignore; fall back to token values
         }
       }
+
+      // Final image used by the app
+      session.user.image = custom || provider || null;
+
+      // Also expose both so the UI can build a precise fallback chain
+      (session.user as any).customImage = custom ?? null;
+      (session.user as any).providerImage = provider ?? null;
 
       return session;
     },
@@ -126,5 +146,5 @@ export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET!,
 };
 
-// If you use the NextAuth route in /app/api/auth/[...nextauth]/route.ts,
-// you likely do: export const { handlers, auth, signIn, signOut } = NextAuth(authOptions);
+// If you're using the App Router route export:
+export const { handlers, auth, signIn, signOut } = NextAuth(authOptions);

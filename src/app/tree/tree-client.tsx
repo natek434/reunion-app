@@ -617,75 +617,81 @@ export default function TreeClient() {
           </button>
         </div>
 
-        {/* Mode toggle */}
-        <div className="ml-auto flex items-center gap-2">
-          <span className="text-xs ">Mode</span>
-          <div className="inline-flex rounded-lg border overflow-hidden">
-            {(["GRAPH", "ANCESTORS"] as ViewMode[]).map((m) => (
-              <button
-                key={m}
-                onClick={() => setViewMode(m)}
-                className={`px-3 py-1.5 text-xs ${viewMode === m ? "bg-neutral-900 text-white" : "bg-white hover:bg-neutral-50"}`}
-              >
-                {m === "GRAPH" ? "Full graph" : "Ancestors only"}
-              </button>
-            ))}
-          </div>
+      {/* Mode toggle */}
+<div className="ml-auto flex items-center gap-2">
+  <span className="text-xs ">Mode</span>
 
-          {viewMode === "ANCESTORS" && (
-            <div className="inline-flex rounded-lg border overflow-hidden">
-              {(["MATERNAL", "PATERNAL", "BOTH"] as Side[]).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setSide(s)}
-                  className={`px-3 py-1.5 text-xs ${side === s ? "bg-neutral-900 text-white" : "bg-white hover:bg-neutral-50"}`}
-                >
-                  {s === "MATERNAL" ? "Maternal" : s === "PATERNAL" ? "Paternal" : "Both"}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+  <div className="inline-flex rounded-lg border overflow-hidden segmented">
+    {(["GRAPH", "ANCESTORS"] as ViewMode[]).map((m) => (
+      <button
+        key={m}
+        onClick={() => setViewMode(m)}
+        className={`seg-btn ${viewMode === m ? "is-active" : ""}`}
+      >
+        {m === "GRAPH" ? "Full graph" : "Ancestors only"}
+      </button>
+    ))}
+  </div>
+
+  {viewMode === "ANCESTORS" && (
+    <div className="inline-flex rounded-lg border overflow-hidden segmented">
+      {(["MATERNAL", "PATERNAL", "BOTH"] as Side[]).map((s) => (
+        <button
+          key={s}
+          onClick={() => setSide(s)}
+          className={`seg-btn ${side === s ? "is-active" : ""}`}
+        >
+          {s === "MATERNAL" ? "Maternal" : s === "PATERNAL" ? "Paternal" : "Both"}
+        </button>
+      ))}
+    </div>
+  )}
+</div>
 
         {/* Kind filter (segmented) + Legend */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs ">Show</span>
-          <div className="inline-flex rounded-lg border overflow-hidden">
-            {(["BIOLOGICAL", "WHANGAI", "ALL"] as ViewKind[]).map((k) => (
-              <button
-                key={k}
-                onClick={() => setViewKind(k)}
-                className={`px-3 py-1.5 text-xs ${
-                  viewKind === k ? "bg-neutral-900 text-white" : "bg-white hover:bg-neutral-50"
-                }`}
-              >
-                {k === "BIOLOGICAL" ? "Biological" : k === "WHANGAI" ? "Whāngai" : "All"}
-              </button>
-            ))}
-          </div>
+      <div className="flex items-center gap-2">
+  <span className="text-xs ">Show</span>
 
-          {/* Legend */}
-          <div className="hidden sm:flex items-center gap-4 text-xs  ml-3">
-            <span className="inline-flex items-center gap-1">
-              <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: COLOR.gender.MALE }} /> Male
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: COLOR.gender.FEMALE }} /> Female
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: COLOR.gender.OTHER }} /> Other/Unknown
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="inline-block w-5 h-[2px]" style={{ background: COLOR.edge.biological }} /> Biological
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="inline-block w-5 h-[2px] border-t border-dashed" style={{ borderColor: COLOR.edge.whangai }} /> Whāngai
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="inline-block w-5 h-[2px]" style={{ background: COLOR.edge.highlight }} /> Highlight
-            </span>
-          </div>
-        </div>
+  <div className="inline-flex rounded-lg border overflow-hidden segmented">
+    {(["BIOLOGICAL", "WHANGAI", "ALL"] as ViewKind[]).map((k) => {
+      const tintClass =
+        k === "BIOLOGICAL" ? "edge-text--bio" :
+        k === "WHANGAI"    ? "edge-text--whangai" :
+                             "edge-text--all";
+      const active = viewKind === k;
+      return (
+        <button
+          key={k}
+          onClick={() => setViewKind(k)}
+          className={`seg-btn ${active ? "is-active" : tintClass}`}
+        >
+          {k === "BIOLOGICAL" ? "Biological" : k === "WHANGAI" ? "Whāngai" : "All"}
+        </button>
+      );
+    })}
+  </div>
+
+        <div className="hidden sm:flex items-center gap-4 text-xs  ml-3">
+    <span className="inline-flex items-center gap-1">
+      <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: COLOR.gender.MALE }} /> Male
+    </span>
+    <span className="inline-flex items-center gap-1">
+      <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: COLOR.gender.FEMALE }} /> Female
+    </span>
+    <span className="inline-flex items-center gap-1">
+      <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: COLOR.gender.OTHER }} /> Other/Unknown
+    </span>
+    <span className="inline-flex items-center gap-1">
+      <span className="inline-block w-5 h-[2px]" style={{ background: COLOR.edge.biological }} /> Biological
+    </span>
+    <span className="inline-flex items-center gap-1">
+      <span className="inline-block w-5 h-[2px] border-t border-dashed" style={{ borderColor: COLOR.edge.whangai }} /> Whāngai
+    </span>
+    <span className="inline-flex items-center gap-1">
+      <span className="inline-block w-5 h-[2px]" style={{ background: COLOR.edge.highlight }} /> Highlight
+    </span>
+  </div>
+</div>
       </div>
 
       {/* Relationship compute */}

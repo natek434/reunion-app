@@ -119,24 +119,25 @@ enum ParentKind {
 }
 
 model User {
-  id            String        @id @default(cuid())
+  id            String          @id @default(cuid())
   name          String?
-  email         String?       @unique
+  email         String?         @unique
   emailVerified DateTime?
   image         String?
   passwordHash  String?
   bio           String?
-  role          Role          @default(MEMBER)
-  personId      String?       @unique
-  person        Person?       @relation("UserPerson", fields: [personId], references: [id], onDelete: SetNull)
-  peopleCreated Person[]      @relation("PersonCreatedBy")
+  role          Role            @default(MEMBER)
+  personId      String?         @unique
+  person        Person?         @relation("UserPerson", fields: [personId], references: [id], onDelete: SetNull)
+  peopleCreated Person[]        @relation("PersonCreatedBy")
   accounts      Account[]
   sessions      Session[]
   gallery       GalleryItem[]
   rsvps         RSVP[]
   Album         Album[]
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  PasswordReset PasswordReset[]
 }
 
 model Person {
@@ -208,6 +209,20 @@ model Album {
   items       AlbumItem[]
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+}
+
+model PasswordReset {
+  id     String @id @default(cuid())
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 datasource db {

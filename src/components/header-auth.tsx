@@ -3,7 +3,7 @@
 import { useSession, signIn } from "next-auth/react";
 import { useState } from "react";
 import ProfileMenuModal from "./profile-menu-modal";
-import Image from "next/image";
+import Avatar from "@/components/avatar";
 
 export default function HeaderAuth() {
   const { data: session, status } = useSession();
@@ -19,38 +19,26 @@ export default function HeaderAuth() {
     );
   }
 
-  const name = session.user.name ?? session.user.email ?? "Account";
-  const avatar = session.user.image; // updated immediately via useSession().update in profile client
-
+const name = session.user.name ?? session.user.email ?? "Account";
+const email = session.user.email ?? "";
+const custom = (session.user as any).customImage || "";      // from DB
+const provider = (session.user as any).providerImage         // Google pic
+               || session.user.image || "";                  // (compat fallback)
   return (
     <>
       <button className="flex items-center gap-2" onClick={() => setOpen(true)} aria-haspopup="dialog">
         <span className="hidden sm:block text-sm text-white/80">{name}</span>
 
-        {avatar ? (
-
-<Image
-  src={avatar}
-  width={36}              // required
-  height={36}              // required
-  alt="Profile"            // required
-  className="h-auto w-auto rounded-full aspect-square ring-2 ring-white/20 object-cover"
+<Avatar
+  customSrc={custom}                  // your /api/files/:id or similar
+  providerSrc={provider}  // optional
+  name={name}
+  email={email}
+  size={48}
+  className="rounded-full ring-2 ring-white/20"
   referrerPolicy="no-referrer"
-  // unoptimized // uncomment if remotePatterns not configured
-   style={{
-    minWidth: '36px',
-    minHeight: '36px',
-    maxWidth: '36px',
-    maxHeight: '36px',
-    flexShrink: 0, // prevent shrinking in flex layouts
-  }}
+  unoptimized
 />
-
-        ) : (
-          <div className="h-9 w-9 rounded-full bg-white/20 text-white grid place-items-center ring-2 ring-white/20">
-            <span className="font-semibold">{name.charAt(0).toUpperCase()}</span>
-          </div>
-        )}
       </button>
 
       <ProfileMenuModal open={open} onClose={() => setOpen(false)} user={session.user} />
