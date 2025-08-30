@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import NextImage from "next/image";
 
 type Item = { src: string; title?: string; type: "image" | "video" };
 
@@ -8,7 +9,6 @@ function useImageCache(maxEntries = 24) {
   const mapRef = useRef<Map<string, string>>(new Map()); // src -> blobURL
   const inFlightRef = useRef<Map<string, Promise<void>>>(new Map());
 
-  // revoke all on unmount
   useEffect(() => {
     return () => {
       for (const url of mapRef.current.values()) URL.revokeObjectURL(url);
@@ -18,10 +18,8 @@ function useImageCache(maxEntries = 24) {
   }, []);
 
   function touch(src: string, blobUrl: string) {
-    // LRU: reinsert as most-recent
     mapRef.current.delete(src);
     mapRef.current.set(src, blobUrl);
-    // prune
     while (mapRef.current.size > maxEntries) {
       const oldest = mapRef.current.keys().next().value as string | undefined;
       if (oldest) {
@@ -33,44 +31,41 @@ function useImageCache(maxEntries = 24) {
   }
 
   async function prefetch(src: string) {
-    // already cached
     if (mapRef.current.has(src)) return;
-    // already prefetching
     const inflight = inFlightRef.current.get(src);
     if (inflight) return inflight;
 
     const p = (async () => {
       try {
-        // Try fetch→blob (ignores server no-store by keeping in memory)
         const resp = await fetch(src, { credentials: "include" }).catch(() => null);
         if (resp && resp.ok) {
           const blob = await resp.blob();
           const url = URL.createObjectURL(blob);
-          // Ensure it's decoded before we consider it ready
           await new Promise<void>((resolve) => {
-            const img = new Image();
+            const Img = (globalThis as any).Image as new () => HTMLImageElement;
+            const img = new Img();
             img.src = url;
             img.onload = () => resolve();
-            img.onerror = () => resolve(); // don't block on errors
-            // `decode()` is nicer but Safari may reject on some images; try both
-            // @ts-ignore
-            if (img.decode) img.decode().then(() => resolve()).catch(() => {});
+            img.onerror = () => resolve();
+            if ((img as any).decode) (img as any).decode().then(() => resolve()).catch(() => {});
           });
           touch(src, url);
           return;
         }
-      } catch {}
+      } catch {
+        // fall through
+      }
 
-      // Fallback: preload via <img> without blob (uses browser cache)
+      // Fallback: warm cache without blob
       await new Promise<void>((resolve) => {
-        const img = new Image();
+        const Img = (globalThis as any).Image as new () => HTMLImageElement;
+        const img = new Img();
         img.crossOrigin = "anonymous";
         img.decoding = "async";
         img.src = src;
         img.onload = () => resolve();
         img.onerror = () => resolve();
-        // @ts-ignore
-        if (img.decode) img.decode().then(() => resolve()).catch(() => {});
+        if ((img as any).decode) (img as any).decode().then(() => resolve()).catch(() => {});
       });
     })();
 
@@ -108,9 +103,9 @@ export default function Slideshow({
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const { prefetch, resolve } = useImageCache(24);
-  const PRELOAD_AHEAD = 4; // tweak as you like
+  const PRELOAD_AHEAD = 4;
 
-  // --- order (with shuffle) ---
+  // order (with shuffle)
   const order = useMemo(() => {
     if (!items.length) return [] as number[];
     if (!shuffle) return items.map((_, i) => i);
@@ -122,7 +117,7 @@ export default function Slideshow({
     return a;
   }, [items, shuffle]);
 
-  // current pos/item and a key that changes every slide
+  // current slide
   const pos = useMemo(() => (order.length ? Math.min(idx, order.length - 1) : 0), [idx, order.length]);
   const cur = order.length ? items[order[pos]] : undefined;
   const curKey = `${order[pos] ?? 0}:${cur?.src ?? ""}`;
@@ -143,30 +138,42 @@ export default function Slideshow({
     });
   }, [order.length, loop]);
 
-  // --- preloading (images) ---
+  // Preload current and a few ahead (images)
   useEffect(() => {
     if (!cur || !order.length) return;
-    // Preload current (ensures decoded if not already) and next few
-    const run = async () => {
+    (async () => {
       if (cur.type === "image") await prefetch(cur.src);
       for (let k = 1; k <= PRELOAD_AHEAD; k++) {
         const idxInOrder = (pos + k) % order.length;
         const it = items[order[idxInOrder]];
         if (it && it.type === "image") prefetch(it.src);
       }
-    };
-    run();
+    })();
   }, [curKey, pos, order, items, prefetch]);
 
-  // --- auto-advance for images: reschedule per slide ---
+  // Auto-advance (images only)
   useEffect(() => {
-    if (!playing) return;
-    if (!cur || cur.type !== "image") return;
+    if (!playing || !cur || cur.type !== "image") return;
     const t = setTimeout(next, seconds * 1000);
     return () => clearTimeout(t);
   }, [playing, cur?.src, cur?.type, seconds, next]);
 
-  // --- fullscreen handling ---
+  // Progress bar arming (AFTER cur/curKey are defined)
+  const [barArmed, setBarArmed] = useState(false);
+  useEffect(() => {
+    setBarArmed(false);
+    if (!playing || cur?.type !== "image") return;
+    let r1 = 0, r2 = 0;
+    r1 = requestAnimationFrame(() => {
+      r2 = requestAnimationFrame(() => setBarArmed(true));
+    });
+    return () => {
+      cancelAnimationFrame(r1);
+      cancelAnimationFrame(r2);
+    };
+  }, [curKey, seconds, playing, cur?.type]);
+
+  // Fullscreen
   const enterFullscreen = useCallback(async () => {
     try {
       if (containerRef.current && !document.fullscreenElement) {
@@ -183,13 +190,14 @@ export default function Slideshow({
     if (document.fullscreenElement) exitFullscreen();
     else enterFullscreen();
   }, [enterFullscreen, exitFullscreen]);
+
   useEffect(() => {
     const onFs = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener("fullscreenchange", onFs);
     return () => document.removeEventListener("fullscreenchange", onFs);
   }, []);
 
-  // --- keyboard shortcuts ---
+  // Keyboard shortcuts
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -206,54 +214,73 @@ export default function Slideshow({
   }, [next, prev, onClose, toggleFullscreen]);
 
   if (!order.length || !cur) return null;
-
-  // Resolve current image to blob URL if preloaded
   const displaySrc = cur.type === "image" ? resolve(cur.src) : cur.src;
 
   return (
     <div ref={containerRef} className="fixed inset-0 z-[1000] bg-black/90 backdrop-blur-sm">
-      {/* Top controls — visible ONLY when not fullscreen */}
+      {/* Top controls */}
       {!isFullscreen && (
-        <div className="absolute left-4 right-4 top-4 flex items-center gap-3 text-white/90">
-          <button className="btn" onClick={onClose}>Close</button>
-          <div className="flex items-center gap-2 ml-2">
-            <button className="btn" onClick={() => setPlaying(p => !p)}>{playing ? "Pause" : "Play"}</button>
+        <div className="absolute left-4 right-4 top-4 z-20 flex items-center gap-3 text-white">
+          <button
+            className="px-3 py-1.5 rounded border bg-white/10 hover:bg-white/20 border-white/30"
+            onClick={onClose}
+          >
+            Close
+          </button>
 
-            <label className="text-sm">Seconds:</label>
+          <div className="flex items-center gap-2 ml-2">
+            <button
+              className="px-3 py-1.5 rounded border bg-white/10 hover:bg-white/20 border-white/30"
+              onClick={() => setPlaying((p) => !p)}
+            >
+              {playing ? "Pause" : "Play"}
+            </button>
+
+            <label className="text-sm/none opacity-90">Seconds:</label>
             <div className="flex items-center gap-2">
               <input
                 type="range"
                 min={3}
                 max={20}
                 value={seconds}
-                onChange={e => setSeconds(parseInt(e.target.value))}
+                onChange={(e) => setSeconds(parseInt(e.target.value))}
+                className="accent-white"
               />
-              <span className="text-sm tabular-nums">{seconds}s</span>
+              <span className="text-sm tabular-nums opacity-90">{seconds}s</span>
             </div>
 
-            <label className="text-sm ml-3">Shuffle</label>
+            <label className="text-sm ml-3 opacity-90">Shuffle</label>
             <input
               type="checkbox"
               checked={shuffle}
-              onChange={e => {
+              onChange={(e) => {
                 setShuffle(e.target.checked);
-                setIdx(0); // restart when toggling shuffle
+                setIdx(0);
               }}
+              className="accent-white"
             />
-            <label className="text-sm ml-3">Loop</label>
-            <input type="checkbox" checked={loop} onChange={e => setLoop(e.target.checked)} />
+            <label className="text-sm ml-3 opacity-90">Loop</label>
+            <input
+              type="checkbox"
+              checked={loop}
+              onChange={(e) => setLoop(e.target.checked)}
+              className="accent-white"
+            />
           </div>
 
-          <button className="btn ml-2" onClick={toggleFullscreen}>
+          <button
+            className="px-3 py-1.5 rounded border bg-white/10 hover:bg-white/20 border-white/30 ml-2"
+            onClick={toggleFullscreen}
+          >
             {isFullscreen ? "Exit full screen" : "Full screen"}
           </button>
 
-          <div className="ml-auto text-sm">{pos + 1} / {order.length}</div>
+          <div className="ml-auto text-sm opacity-90">{pos + 1} / {order.length}</div>
         </div>
       )}
 
-      {/* Media (double-click toggles fullscreen) */}
-      <div className="absolute inset-0 grid place-items-center" onDoubleClick={toggleFullscreen}>
+      {/* Media layer below controls */}
+      <div className="absolute inset-0 z-10 grid place-items-center" onDoubleClick={toggleFullscreen}>
         {cur.type === "video" ? (
           <video
             key={curKey}
@@ -261,38 +288,52 @@ export default function Slideshow({
             src={displaySrc}
             controls
             autoPlay
-            onEnded={next}
+            playsInline
             style={{ maxWidth: "98vw", maxHeight: "88vh", borderRadius: 12 }}
+            onEnded={next}
           />
         ) : (
-          <img
-            key={curKey}
+          <NextImage
             src={displaySrc}
             alt={cur.title || ""}
-            loading="eager"
-            decoding="async"
-            style={{ maxWidth: "98vw", maxHeight: "88vh", objectFit: "contain", borderRadius: 12, willChange: "opacity" }}
+            width={1920}
+            height={1080}
+            priority
+            unoptimized
+            className="max-w-[98vw] max-h-[88vh] object-contain rounded-xl"
           />
         )}
       </div>
 
-      {/* Caption + progress (always visible) */}
-      <div className="absolute left-8 right-8 bottom-6 text-white/90 pointer-events-none select-none">
-        <div className="mb-2 text-center text-sm">{cur.title}</div>
+      {/* Caption + progress */}
+      <div className="absolute left-8 right-8 bottom-6 z-20 text-white pointer-events-none select-none">
+        <div className="mb-2 text-center text-sm opacity-90">{cur.title}</div>
         <div className="h-1.5 bg-white/20 rounded-full overflow-hidden" key={curKey}>
           <div
             className="h-full bg-white/80 transition-[width]"
             style={{
-              width: playing && cur.type === "image" ? "100%" : "0%",
+              width: playing && cur?.type === "image" && barArmed ? "100%" : "0%",
               transitionDuration: `${seconds}s`,
             }}
           />
         </div>
       </div>
 
-      {/* Arrows (always visible) */}
-      <button className="absolute left-3 top-1/2 -translate-y-1/2 btn" onClick={prev}>‹</button>
-      <button className="absolute right-3 top-1/2 -translate-y-1/2 btn" onClick={next}>›</button>
+      {/* Arrows */}
+      <button
+        className="absolute left-3 top-1/2 -translate-y-1/2 z-20 px-3 py-1.5 rounded border bg-white/10 hover:bg-white/20 border-white/30 text-white"
+        onClick={prev}
+        aria-label="Previous"
+      >
+        ‹
+      </button>
+      <button
+        className="absolute right-3 top-1/2 -translate-y-1/2 z-20 px-3 py-1.5 rounded border bg-white/10 hover:bg-white/20 border-white/30 text-white"
+        onClick={next}
+        aria-label="Next"
+      >
+        ›
+      </button>
     </div>
   );
 }

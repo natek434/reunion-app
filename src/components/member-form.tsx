@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import PersonPicker, { PersonOption } from "@/components/ui/person-picker";
+import { toast } from "sonner";
+import { ensureCsrfToken } from "@/lib/csrf-client"; // <-- your helper that may call /api/csrf
 
 type Gender = "MALE" | "FEMALE" | "OTHER" | "UNKNOWN";
 
@@ -25,9 +27,14 @@ export default function MemberForm() {
       return;
     }
     setBusy(true); setMsg(null);
+      const csrf = await ensureCsrfToken();
+          if (!csrf) {
+            toast.error("Missing CSRF token. Please refresh the page and try again.");
+            return;
+          }
     const res = await fetch("/api/members", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "X-Csrf-Token": csrf },
       body: JSON.stringify({
         firstName,
         lastName,

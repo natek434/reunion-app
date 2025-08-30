@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { ensureCsrfToken } from "@/lib/csrf-client"; // <-- your helper that may call /api/csrf
 
 export default function ManageMember({
   options,
@@ -31,8 +32,13 @@ export default function ManageMember({
     );
     if (!ok) return;
     try {
+       const csrf = await ensureCsrfToken();
+                if (!csrf) {
+                  toast.error("Missing CSRF token. Please refresh the page and try again.");
+                  return;
+                }
       setBusy(true);
-      const res = await fetch(`/api/family/person/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/family/person/${id}`, { method: "DELETE", headers: { "X-Csrf-Token": csrf } });
       if (!res.ok) throw new Error(await res.text());
       setId("");
       toast.success("Member deleted");
@@ -48,9 +54,14 @@ export default function ManageMember({
     if (!id) return;
     try {
       setLockBusy(true);
+       const csrf = await ensureCsrfToken();
+                if (!csrf) {
+                  toast.error("Missing CSRF token. Please refresh the page and try again.");
+                  return;
+                }
       const res = await fetch(`/api/family/person/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Csrf-Token": csrf },
         body: JSON.stringify({ locked: next }),
       });
       if (!res.ok) throw new Error(await res.text());
@@ -58,7 +69,7 @@ export default function ManageMember({
       toast.success(next ? "Member locked" : "Member unlocked");
       await onAfterChange();
     } catch (e: any) {
-      toast.error("Lock/unlock failed", { description: e?.message?.slice(0, 160) });
+      toast.error("Lock/unlock failed", { description: e?.message?.slice(0, 160) }, role);
     } finally {
       setLockBusy(false);
     }

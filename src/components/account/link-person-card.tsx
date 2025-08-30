@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { ensureCsrfToken } from "@/lib/csrf-client"; // <-- your helper that may call /api/csrf
 
 type Gender = "MALE" | "FEMALE" | "OTHER" | "UNKNOWN";
 type PersonLite = { id: string; displayName: string; gender?: Gender; birthDate?: string | null };
@@ -25,9 +27,14 @@ export default function LinkPersonCard({ current }: { current?: { id: string; di
 
   async function link(personId: string) {
     setBusy(true); setMsg(null);
+     const csrf = await ensureCsrfToken();
+              if (!csrf) {
+                toast.error("Missing CSRF token. Please refresh the page and try again.");
+                return;
+              }
     const r = await fetch("/api/account/person", {
       method: "PATCH",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "X-Csrf-Token": csrf },
       body: JSON.stringify({ personId }),
     });
     setBusy(false);
@@ -37,7 +44,12 @@ export default function LinkPersonCard({ current }: { current?: { id: string; di
 
   async function unlink() {
     setBusy(true); setMsg(null);
-    const r = await fetch("/api/account/person", { method: "DELETE" });
+     const csrf = await ensureCsrfToken();
+              if (!csrf) {
+                toast.error("Missing CSRF token. Please refresh the page and try again.");
+                return;
+              }
+    const r = await fetch("/api/account/person", { method: "DELETE", headers: { "X-Csrf-Token": csrf } });
     setBusy(false);
     setMsg(r.ok ? "Unlinked" : "Failed to unlink");
     if (r.ok) location.reload();

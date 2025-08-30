@@ -20,12 +20,6 @@ export default function RSVPClient({
   const [guests, setGuests] = useState(initialGuests);
   const [saving, setSaving] = useState(false);
 
-  // Optional: warm the CSRF token on mount so first click doesn’t need the extra round-trip
-  useEffect(() => {
-    void ensureCsrfToken().catch(() => {
-      /* ignore – we’ll try again on save */
-    });
-  }, []);
 
   async function save(nextStatus: "YES" | "NO" | "PENDING") {
     try {

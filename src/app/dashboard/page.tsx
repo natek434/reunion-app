@@ -2,6 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { ensureCsrfToken } from "@/lib/csrf-client"; // <-- fetches/sets csrf cookie & returns token
+import { useSession } from "next-auth/react";
+import { redirect } from "next/navigation";
+
 
 type ItemStatus = "queued" | "uploading" | "done" | "error";
 type UploadItem = {
@@ -20,6 +24,10 @@ function uid() {
 }
 
 export default function Dashboard() {
+    const session = useSession();
+    if (session.status != "authenticated") redirect("/signin"); // keep if you want sign-in required
+    
+
   const [items, setItems] = useState<UploadItem[]>([]);
   const [running, setRunning] = useState(false);
 
@@ -52,7 +60,8 @@ export default function Dashboard() {
     setItems((prev) => prev.map((it) => (it.id === id ? { ...it, status, error } : it)));
   }
 
-  function uploadOne(it: UploadItem) {
+  // Pass the token in for each upload
+  function uploadOne(it: UploadItem, csrf: string) {
     return new Promise<void>((resolve) => {
       const fd = new FormData();
       fd.append("file", it.file);
@@ -60,6 +69,12 @@ export default function Dashboard() {
       const xhr = new XMLHttpRequest();
       xhr.open("POST", "/api/upload");
       xhr.responseType = "text";
+
+      // 🔐 CSRF header (cookie already set by /api/csrf)
+      xhr.setRequestHeader("X-CSRF-Token", csrf);
+      // If your API might be on a subdomain, this keeps cookies attached
+      // (harmless for same-origin):
+      xhr.withCredentials = true;
 
       setStatus(it.id, "uploading");
 
@@ -73,8 +88,9 @@ export default function Dashboard() {
           setStatus(it.id, "done");
           toast.success("Uploaded", { description: it.file.name });
         } else {
-          setStatus(it.id, "error", xhr.responseText || `HTTP ${xhr.status}`);
-          toast.error("Upload failed", { description: it.file.name });
+          const msg = xhr.responseText || `HTTP ${xhr.status}`;
+          setStatus(it.id, "error", msg);
+          toast.error("Upload failed", { description: `${it.file.name} — ${msg}` });
         }
         resolve();
       };
@@ -93,6 +109,14 @@ export default function Dashboard() {
     if (!items.some((i) => i.status === "queued")) return;
     setRunning(true);
 
+    // Get/refresh token once for this batch
+    const csrf = await ensureCsrfToken();
+    if (!csrf) {
+      toast.error("Missing CSRF token. Refresh the page and try again.");
+      setRunning(false);
+      return;
+    }
+
     const queue = [...items.filter((i) => i.status === "queued")];
     const workers: Promise<void>[] = [];
 
@@ -102,7 +126,7 @@ export default function Dashboard() {
           while (queue.length) {
             const next = queue.shift();
             if (!next) break;
-            await uploadOne(next);
+            await uploadOne(next, csrf);
           }
         })()
       );
@@ -174,7 +198,6 @@ export default function Dashboard() {
             Clear all
           </button>
 
-          {/* Retry only shows if there are errors */}
           {overall.errors > 0 && (
             <button className="btn" disabled={running} onClick={retryErrors}>
               Retry errors

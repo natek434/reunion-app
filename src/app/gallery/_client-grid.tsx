@@ -3,6 +3,8 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowDown, ArrowUp, ExternalLink } from "lucide-react";
+import { toast } from "sonner";
+import { ensureCsrfToken } from "@/lib/csrf-client"; // <-- your helper that may call /api/csrf'
 
 type Item = {
   id: string;
@@ -39,9 +41,15 @@ export default function GalleryGrid({
   const loadMore = useCallback(async () => {
     if (!cursor || loading) return;
     setLoading(true);
+     const csrf = await ensureCsrfToken();
+              if (!csrf) {
+                toast.error("Missing CSRF token. Please refresh the page and try again.");
+                return;
+              }
     try {
       const res = await fetch(`/api/gallery/page?cursor=${encodeURIComponent(cursor)}`, {
         cache: "no-store",
+        headers: { "X-Csrf-Token": csrf },
       });
       const data = await res.json();
       setItems((prev) => prev.concat(data.items));

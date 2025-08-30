@@ -13,9 +13,12 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
   if (!session?.user?.id) return new Response("Unauthorized", { status: 401 });
 
   const { id } = await context.params;
-  const item = await prisma.galleryItem.findUnique({ where: { id } });
+  const item = await prisma.galleryItem.findUnique({ where: { id }, select: { userId: true, fileName: true, mimeType: true, name: true } });
   if (!item) return new Response("Not found", { status: 404 });
-
+  const role = (session.user as any)?.role;
+  if (item.userId !== (session.user as any).id && role !== "ADMIN" && role !== "EDITOR") {
+    return new Response("Forbidden", { status: 403 });
+  }
   try {
     const { getLocalFileStream } = await import("@/lib/localstorage");
     const data = await getLocalFileStream(item.fileName); // ensure field is `filename`

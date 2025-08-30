@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import Avatar from "@/components/avatar"; // ensure casing matches file name
+import { ensureCsrfToken } from "@/lib/csrf-client"; // <-- your helper that may call /api/csrf
 
 type Props = {
   initialName: string;
@@ -53,9 +54,14 @@ export default function ProfileClient({
 
     try {
       setSaving(true);
+        const csrf = await ensureCsrfToken();
+          if (!csrf) {
+            toast.error("Missing CSRF token. Please refresh the page and try again.");
+            return;
+          }
       const res = await fetch("/api/account/profile", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
         body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
@@ -83,7 +89,12 @@ export default function ProfileClient({
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
+        const csrf = await ensureCsrfToken();
+          if (!csrf) {
+            toast.error("Missing CSRF token. Please refresh the page and try again.");
+            return;
+          }
+      const res = await fetch("/api/upload", { method: "POST", headers: {"Content-Type": "application/json", "X-Csrf-Token": csrf}, body: fd });
       const data = await res.json();
       if (!res.ok || !data?.id) throw new Error(data?.error || "Upload failed");
       setImage(`/api/files/${data.id}`);
@@ -111,9 +122,14 @@ export default function ProfileClient({
 
     try {
       setPwBusy(true);
+        const csrf = await ensureCsrfToken();
+          if (!csrf) {
+            toast.error("Missing CSRF token. Please refresh the page and try again.");
+            return;
+          }
       const res = await fetch("/api/account/password", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
         body: JSON.stringify({ currentPassword, newPassword }),
       });
       const data = await res.json().catch(() => ({}));

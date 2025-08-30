@@ -19,9 +19,9 @@ export function setCsrfCookie(res: NextResponse, token = newCsrfToken()) {
     name: CSRF_COOKIE,
     value: token,
     path: "/",
-    sameSite: "lax",
-    httpOnly: false, // must be readable by client JS
-    secure: false
+    sameSite: "strict",
+    httpOnly: true, // must be readable by client JS
+    secure: process.env.NODE_ENV === "production",
   });
   return token;
 }

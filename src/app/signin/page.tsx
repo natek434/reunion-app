@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { toast } from "sonner";
+import { ensureCsrfToken } from "@/lib/csrf-client"; // <-- your helper that may call /api/csrf
 
 export default function SignIn() {
   // Sign-in state
@@ -41,9 +42,14 @@ export default function SignIn() {
     try {
       setResetBusy(true);
       // Adjust this path to match your API (e.g., /api/account/password/reset-request)
+            const csrf = await ensureCsrfToken();
+            if (!csrf) {
+              toast.error("Missing CSRF token. Please refresh the page and try again.");
+              return;
+            }
       const res = await fetch("/api/account/password/reset-request", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
         body: JSON.stringify({ email: targetEmail }),
       });
       const data = await res.json().catch(() => ({}));

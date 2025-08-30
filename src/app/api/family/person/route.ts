@@ -41,8 +41,14 @@ export const POST = withCsrf(async (req: Request): Promise<Response> => {
   }
 
   try {
-    const person = await prisma.person.create({
-      data: { firstName, lastName, gender, birthDate: birthDate || undefined },
+ const person = await prisma.person.create({
+   data: {
+     firstName,
+     lastName,
+     gender,
+     birthDate: birthDate || undefined,
+     createdBy: { connect: { id: userId } }, // 👈 relation connect
+   },
       select: { id: true, firstName: true, lastName: true, gender: true },
     });
     return NextResponse.json({ ok: true, person });

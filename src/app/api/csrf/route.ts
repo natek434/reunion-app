@@ -19,8 +19,8 @@ export async function GET() {
       name: CSRF_COOKIE,
       value: token,
       path: "/",
-      sameSite: "lax",
-      httpOnly: false,
+      sameSite: "strict",
+      httpOnly: true,
       secure: process.env.NODE_ENV === "production",
     });
     return res;

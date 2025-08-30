@@ -19,6 +19,7 @@ import { graphlib, layout as dagreLayout } from "@dagrejs/dagre";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
+import { ensureCsrfToken } from "@/lib/csrf-client"; // <-- your helper that may call /api/csrf
 
 /* ===== Types ===== */
 type Role = "ADMIN" | "EDITOR" | "MEMBER";
@@ -214,7 +215,12 @@ function ManageMember({
     if (!window.confirm(`Soft delete ${name}? This will remove their links.`)) return;
     try {
       setBusy(true);
-      const res = await fetch(`/api/family/person/${id}`, { method: "DELETE" });
+       const csrf = await ensureCsrfToken();
+                if (!csrf) {
+                  toast.error("Missing CSRF token. Please refresh the page and try again.");
+                  return;
+                }
+      const res = await fetch(`/api/family/person/${id}`, { method: "DELETE", headers: { "X-CSRF-Token": csrf } });
       if (!res.ok) throw new Error(await res.text());
       setId("");
       toast.success("Member deleted");
@@ -230,9 +236,14 @@ function ManageMember({
     if (!id) return;
     try {
       setLockBusy(true);
+       const csrf = await ensureCsrfToken();
+                if (!csrf) {
+                  toast.error("Missing CSRF token. Please refresh the page and try again.");
+                  return;
+                }
       const res = await fetch(`/api/family/person/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Csrf-Token": csrf },
         body: JSON.stringify({ locked: next }),
       });
       if (!res.ok) throw new Error(await res.text());
@@ -374,9 +385,14 @@ export default function FamilyClient() {
     }
 
     try {
+           const csrf = await ensureCsrfToken();
+                 if (!csrf) {
+                   toast.error("Missing CSRF token. Please refresh the page and try again.");
+                   return;
+                 }
       const res = await fetch("/api/family/link/parent", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Csrf-Token": csrf },
         body: JSON.stringify({
           parentId: source,
           childId: target,
@@ -403,9 +419,14 @@ export default function FamilyClient() {
     if (!window.confirm(`Remove ${label} link?\n\nParent → Child`)) return;
 
     try {
+           const csrf = await ensureCsrfToken();
+                 if (!csrf) {
+                   toast.error("Missing CSRF token. Please refresh the page and try again.");
+                   return;
+                 }
       const res = await fetch("/api/family/link/parent", {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Csrf-Token": csrf },
         body: JSON.stringify({ parentId, childId, kind }),
       });
       if (!res.ok) throw new Error(await res.text());
@@ -436,9 +457,14 @@ export default function FamilyClient() {
 
     try {
       setLinkBusy(true);
+           const csrf = await ensureCsrfToken();
+                 if (!csrf) {
+                   toast.error("Missing CSRF token. Please refresh the page and try again.");
+                   return;
+                 }
       const res = await fetch("/api/family/link/parent", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Csrf-Token": csrf },
         body: JSON.stringify({
           parentId: manualParent,
           childId: manualChild,
@@ -474,10 +500,16 @@ export default function FamilyClient() {
       lastName: String(fd.get("lastName") || ""),
       gender: (fd.get("gender") as string) || "UNKNOWN",
       birthDate: (fd.get("birthDate") as string) || undefined,
+      createdBy: (session?.user as any)?.email || undefined,
     };
+    const csrf = await ensureCsrfToken();
+             if (!csrf) {
+               toast.error("Missing CSRF token. Please refresh the page and try again.");
+               return;
+             }
     const res = await fetch("/api/family/person", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-Csrf-Token": csrf },
       body: JSON.stringify(payload),
     });
     if (res.ok) {
@@ -632,3 +664,4 @@ export default function FamilyClient() {
     </div>
   );
 }
+

@@ -16,6 +16,7 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 import { graphlib, layout as dagreLayout } from "@dagrejs/dagre";
 import { toast } from "sonner";
+import { ensureCsrfToken } from "@/lib/csrf-client"; // <-- your helper that may call /api/csrf
 
 /* ---------- Types ---------- */
 type Gender = "MALE" | "FEMALE" | "OTHER" | "UNKNOWN";
@@ -475,9 +476,14 @@ export default function TreeClient() {
 
   useEffect(() => {
     (async () => {
+       const csrf = await ensureCsrfToken();
+                if (!csrf) {
+                  toast.error("Missing CSRF token. Please refresh the page and try again.");
+                  return;
+                }
       const [graphRes, meRes] = await Promise.all([
-        fetch("/api/family/graph", { cache: "no-store" }),
-        fetch("/api/family/me", { cache: "no-store" }),
+        fetch("/api/family/graph", { cache: "no-store", headers: { "x-csrf-token": csrf } }),
+        fetch("/api/family/me", { cache: "no-store", headers: { "x-csrf-token": csrf } }),
       ]);
       const graph = await graphRes.json();
       setRawNodes(graph.nodes as GNode[]);

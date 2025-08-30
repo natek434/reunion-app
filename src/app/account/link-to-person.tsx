@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import PersonPicker, { PersonOption } from "@/components/ui/person-picker";
+import { toast } from "sonner";
+import { ensureCsrfToken } from "@/lib/csrf-client"; // <-- your helper that may call /api/csrf
 
 export default function LinkToPerson({
   current,
@@ -15,9 +17,14 @@ export default function LinkToPerson({
   async function link() {
     if (!pick) return;
     setBusy(true); setMsg(null);
+      const csrf = await ensureCsrfToken();
+          if (!csrf) {
+            toast.error("Missing CSRF token. Please refresh the page and try again.");
+            return;
+          }
     const r = await fetch("/api/account/person", {
       method: "PATCH",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "X-Csrf-Token": csrf },
       body: JSON.stringify({ personId: pick.id }),
     });
     setBusy(false);
@@ -27,7 +34,12 @@ export default function LinkToPerson({
 
   async function unlink() {
     setBusy(true); setMsg(null);
-    const r = await fetch("/api/account/person", { method: "DELETE" });
+      const csrf = await ensureCsrfToken();
+          if (!csrf) {
+            toast.error("Missing CSRF token. Please refresh the page and try again.");
+            return;
+          }
+    const r = await fetch("/api/account/person", { method: "DELETE", headers: { "X-Csrf-Token": csrf } });
     setBusy(false);
     setMsg(r.ok ? "Unlinked" : "Failed to unlink");
     if (r.ok) location.reload();

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import Image from "next/image";
+import { ensureCsrfToken } from "@/lib/csrf-client"; // <-- your helper that may call /api/csrf
 
 type UploadItem = {
   id: string;
@@ -34,9 +35,14 @@ export default function ClientUploads({ initial }: { initial: UploadItem[] }) {
 
     setBusy(true);
     try {
+       const csrf = await ensureCsrfToken();
+                if (!csrf) {
+                  toast.error("Missing CSRF token. Please refresh the page and try again.");
+                  return;
+                }
       const res = await fetch("/api/gallery/bulk-delete", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Csrf-Token": csrf },
         body: JSON.stringify({ ids: selected }),
       });
       const data = await res.json().catch(() => ({}));

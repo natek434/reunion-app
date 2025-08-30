@@ -4,6 +4,28 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Slideshow from "./_slideshow";
+import { ensureCsrfToken } from "@/lib/csrf-client"; // <-- your helper that may call /api/csrf
+import Image from "next/image";
+
+// Derive a thumbnail URL for a gallery item/file
+function thumbUrl(fileId: string, opts?: { w?: number; h?: number; fit?: "cover" | "contain" }) {
+  const w = opts?.w ?? 96;
+  const h = opts?.h ?? 72;
+  const fit = opts?.fit ?? "cover";
+  return `/api/files/${fileId}/thumb?w=${w}&h=${h}&fit=${fit}`;
+}
+
+// Tiny fallback placeholder (if thumb 404s)
+function onThumbError(e: React.SyntheticEvent<HTMLImageElement>) {
+  const el = e.currentTarget;
+  el.onerror = null;
+  el.src =
+    "data:image/svg+xml;utf8," +
+    encodeURIComponent(
+      `<svg xmlns='http://www.w3.org/2000/svg' width='96' height='72'><rect width='100%' height='100%' fill='#eee'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='10' fill='#999'>no preview</text></svg>`
+    );
+}
+
 
 type Slide = {
   albumItemId: string;
@@ -59,9 +81,14 @@ export default function AlbumClient({ albumId }: { albumId: string }) {
     if (!selectedGallery.length) return;
     setBusyAdd(true);
     try {
+        const csrf = await ensureCsrfToken();
+          if (!csrf) {
+            toast.error("Missing CSRF token. Please refresh the page and try again.");
+            return;
+          }
       const res = await fetch(`/api/albums/${albumId}/items`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Csrf-Token": csrf },
         body: JSON.stringify({ galleryItemIds: selectedGallery }),
       });
       if (!res.ok) throw new Error(await safeText(res));
@@ -79,9 +106,14 @@ export default function AlbumClient({ albumId }: { albumId: string }) {
   async function removeItem(albumItemId: string) {
     setBusyRemove(true);
     try {
+        const csrf = await ensureCsrfToken();
+          if (!csrf) {
+            toast.error("Missing CSRF token. Please refresh the page and try again.");
+            return;
+          }
       const res = await fetch(`/api/albums/${albumId}/items`, {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Csrf-Token": csrf },
         body: JSON.stringify({ albumItemId }),
       });
       if (!res.ok) throw new Error(await safeText(res));
@@ -101,20 +133,31 @@ export default function AlbumClient({ albumId }: { albumId: string }) {
 
     setBusyRemove(true);
     try {
+        const csrf = await ensureCsrfToken();
+          if (!csrf) {
+            toast.error("Missing CSRF token. Please refresh the page and try again.");
+            return;
+          }
       // Try array API first
       const res = await fetch(`/api/albums/${albumId}/items`, {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Csrf-Token": csrf },
         body: JSON.stringify({ albumItemIds: selectedSlides }),
       });
 
       if (!res.ok) {
+             const csrf = await ensureCsrfToken();
+          if (!csrf) {
+            toast.error("Missing CSRF token. Please refresh the page and try again.");
+            return;
+          }
         // Fallback to per-item deletes if server only supports single removes
         await Promise.all(
+     
           selectedSlides.map((albumItemId) =>
             fetch(`/api/albums/${albumId}/items`, {
               method: "DELETE",
-              headers: { "Content-Type": "application/json" },
+              headers: { "Content-Type": "application/json", "X-Csrf-Token": csrf },
               body: JSON.stringify({ albumItemId }),
             })
           )
@@ -143,9 +186,14 @@ export default function AlbumClient({ albumId }: { albumId: string }) {
     setSlides(next);
 
     try {
+        const csrf = await ensureCsrfToken();
+          if (!csrf) {
+            toast.error("Missing CSRF token. Please refresh the page and try again.");
+            return;
+          }
       await fetch(`/api/albums/${albumId}/order`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Csrf-Token": csrf },
         body: JSON.stringify({ order: next.map((s) => s.albumItemId) }),
       });
     } catch {
@@ -158,7 +206,12 @@ export default function AlbumClient({ albumId }: { albumId: string }) {
     if (!confirm("Delete this album? This only removes the album (not your uploads).")) return;
     setBusyDeleteAlbum(true);
     try {
-      const res = await fetch(`/api/albums/${albumId}`, { method: "DELETE" });
+       const csrf = await ensureCsrfToken();
+          if (!csrf) {
+            toast.error("Missing CSRF token. Please refresh the page and try again.");
+            return;
+          }
+      const res = await fetch(`/api/albums/${albumId}`, { method: "DELETE", headers: { "X-Csrf-Token": csrf } });
       if (!res.ok) throw new Error(await safeText(res));
       toast.success("Album deleted");
       router.push("/albums");
@@ -240,6 +293,7 @@ export default function AlbumClient({ albumId }: { albumId: string }) {
                       }}
                     />
                   </th>
+                  <th className="p-2 w-20">Thumb</th>
                   <th className="p-2">Name</th>
                   <th className="p-2">Type</th>
                   <th className="p-2">Owner</th>
@@ -259,6 +313,18 @@ export default function AlbumClient({ albumId }: { albumId: string }) {
                         }
                       />
                     </td>
+                     <td className="p-2">
+     <Image
+         src={thumbUrl(item.id)}
+         alt=""
+         width={96}
+         height={72}
+         loading="lazy"
+         className="h-12 w-16 object-cover rounded border"
+         onError={onThumbError}
+         unoptimized // (optional if you’re proxying/transforming already)
+       />
+     </td>
                     <td className="p-2">{item.name}</td>
                     <td className="p-2">{item.mimeType}</td>
                     <td className="p-2">{item.owner}</td>
@@ -311,6 +377,28 @@ export default function AlbumClient({ albumId }: { albumId: string }) {
                 Start slideshow
               </button>
             </div>
+             {selectedGallery.length > 0 && (
+   <div className="mb-3 flex flex-wrap gap-2">
+     {selectedGallery.slice(0, 20).map((id) => (
+       <Image
+         key={id}
+         src={thumbUrl(id, { w: 64, h: 64 })}
+         alt=""
+         width={64}
+         height={64}
+         className="h-16 w-16 object-cover rounded border"
+         onError={onThumbError}
+         title="Selected"
+         unoptimized
+       />
+     ))}
+     {selectedGallery.length > 20 && (
+       <span className="self-center text-xs text-neutral-500">
+         {selectedGallery.length - 20} more
+       </span>
+     )}
+   </div>
+ )}
           </div>
 
           <div className="max-h-[360px] overflow-auto border rounded-xl">

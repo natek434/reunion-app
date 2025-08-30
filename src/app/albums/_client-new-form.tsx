@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { ensureCsrfToken } from "@/lib/csrf-client"; // <-- your helper that may call /api/csrf
 
 export default function NewAlbumForm() {
   const [name, setName] = useState("");
@@ -15,9 +16,14 @@ export default function NewAlbumForm() {
     if (!name.trim()) return;
     setBusy(true);
     try {
+        const csrf = await ensureCsrfToken();
+          if (!csrf) {
+            toast.error("Missing CSRF token. Please refresh the page and try again.");
+            return;
+          }
       const res = await fetch("/api/albums", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Csrf-Token": csrf },
         body: JSON.stringify({ name: name.trim(), description }),
       });
       const data = await res.json().catch(() => ({}));
