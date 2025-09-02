@@ -1,4 +1,3 @@
-// src/app/api/files/[id]/video/route.ts
 import { Readable } from "node:stream";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -19,21 +18,15 @@ export async function GET(
 
   const { id } = await ctx.params;
 
-  // Adjust 'fileName' if your column is named differently
   const item = await prisma.galleryItem.findUnique({
     where: { id },
-    select: { id: true, name: true, mimeType: true, fileName: true, size: true, userId: true }, 
+    select: { id: true, name: true, mimeType: true, fileName: true, size: true },
   });
-  if (!item || !item.fileName) return new Response("Not found", { status: 404 });
-
-  const role = (session.user as any)?.role;
-  if (item.userId !== (session.user as any).id && role !== "ADMIN" && role !== "EDITOR") {
-    return new Response("Forbidden", { status: 403 });
-  }
+  if (!item?.fileName) return new Response("Not found", { status: 404 });
 
   const meta = await getLocalMeta(item.fileName);
   const totalSize = Number(item.size || meta.size);
-  const mime = item.mimeType || meta.mime;
+  const mime = item.mimeType || meta.mime || "application/octet-stream";
 
   const headersBase: Record<string, string> = {
     "Accept-Ranges": "bytes",
@@ -45,17 +38,13 @@ export async function GET(
   const range = req.headers.get("range");
   if (range && /^bytes=\d+-\d*$/.test(range) && totalSize > 0) {
     const [startStr, endStr] = range.replace("bytes=", "").split("-");
-    const start = Math.max(0, parseInt(startStr, 10));
-    const CHUNK = 2 * 1024 * 1024 - 1; // default chunk size if end not specified
+    const start = Math.max(0, parseInt(startStr, 10) || 0);
+    const CHUNK = 2 * 1024 * 1024 - 1; // ~2MB default chunk
     const end = Math.min(endStr ? parseInt(endStr, 10) : start + CHUNK, totalSize - 1);
 
     const stream = createLocalReadStream(item.fileName, { start, end });
     try {
-      (req as any).signal?.addEventListener(
-        "abort",
-        () => (stream as any).destroy?.(),
-        { once: true }
-      );
+      (req as any).signal?.addEventListener("abort", () => (stream as any).destroy?.(), { once: true });
     } catch {}
 
     return new Response(Readable.toWeb(stream as any), {
@@ -66,22 +55,18 @@ export async function GET(
         "Content-Length": String(end - start + 1),
       },
     });
-  } else {
-    const stream = createLocalReadStream(item.fileName);
-    const extra: Record<string, string> = {};
-    if (totalSize) extra["Content-Length"] = String(totalSize);
-
-    try {
-      (req as any).signal?.addEventListener(
-        "abort",
-        () => (stream as any).destroy?.(),
-        { once: true }
-      );
-    } catch {}
-
-    return new Response(Readable.toWeb(stream as any), {
-      status: 200,
-      headers: { ...headersBase, ...extra },
-    });
   }
+
+  const stream = createLocalReadStream(item.fileName);
+  const extra: Record<string, string> = {};
+  if (totalSize) extra["Content-Length"] = String(totalSize);
+
+  try {
+    (req as any).signal?.addEventListener("abort", () => (stream as any).destroy?.(), { once: true });
+  } catch {}
+
+  return new Response(Readable.toWeb(stream as any), {
+    status: 200,
+    headers: { ...headersBase, ...extra },
+  });
 }

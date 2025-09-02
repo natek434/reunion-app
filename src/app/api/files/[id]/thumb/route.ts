@@ -30,11 +30,6 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const relPath = item.fileName;   // <-- fallback
   if (!relPath) return new Response("No stored path", { status: 500 });
 
-  const role = (session.user as any)?.role;
-  if (item.userId !== (session.user as any).id && role !== "ADMIN" && role !== "EDITOR") {
-    return new Response("Forbidden", { status: 403 });
-  }
-
   // ETag from file mtime so thumbs invalidate on replace
   const meta = await getLocalMeta(relPath);
   const etag = `"t-${item.id}-${Math.floor(meta.mtimeMs)}-w${w}-q${q}"`;
