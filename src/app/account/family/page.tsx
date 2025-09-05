@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import PersonPicker, { PersonOption } from "@/components/ui/person-picker";
 import { toast } from "sonner";
-import { ensureCsrfToken } from "@/lib/csrf-client"; // <-- your helper that may call /api/csrf
+import { ensureCsrfToken } from "@/lib/csrf-client";
+import MyFamilyDashboard from "@/components/family/my-family-dashboard";
 
 type Gender = "MALE" | "FEMALE" | "OTHER" | "UNKNOWN";
 
@@ -14,10 +14,6 @@ export default function MemberForm() {
   const [birthDate, setBirth] = useState("");
   const [notes, setNotes] = useState("");
 
-  const [mother, setMother] = useState<PersonOption | null>(null);
-  const [father, setFather] = useState<PersonOption | null>(null);
-  const [child,  setChild]  = useState<PersonOption | null>(null);
-
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -26,12 +22,17 @@ export default function MemberForm() {
       setMsg("First name is required.");
       return;
     }
-    setBusy(true); setMsg(null);
-      const csrf = await ensureCsrfToken();
-          if (!csrf) {
-            toast.error("Missing CSRF token. Please refresh the page and try again.");
-            return;
-          }
+
+    setBusy(true);
+    setMsg(null);
+
+    const csrf = await ensureCsrfToken();
+    if (!csrf) {
+      setBusy(false); // prevent perma-spinner
+      toast.error("Missing CSRF token. Please refresh the page and try again.");
+      return;
+    }
+
     const res = await fetch("/api/members", {
       method: "POST",
       headers: { "content-type": "application/json", "X-Csrf-Token": csrf },
@@ -41,18 +42,23 @@ export default function MemberForm() {
         gender,
         birthDate: birthDate || null,
         notes: notes || null,
-        linkMotherId: mother?.id || null,
-        linkFatherId: father?.id || null,
-        linkChildId:  child?.id || null,
-        linkKind: "BIOLOGICAL",
       }),
     });
+
     const data = await res.json().catch(() => ({}));
     setBusy(false);
-    setMsg(res.ok ? "Member created." : (data?.error || "Failed to create member"));
+
     if (res.ok) {
-      setFirst(""); setLast(""); setGender("UNKNOWN"); setBirth(""); setNotes("");
-      setMother(null); setFather(null); setChild(null);
+      setMsg("Member created.");
+      setFirst("");
+      setLast("");
+      setGender("UNKNOWN");
+      setBirth("");
+      setNotes("");
+      toast.success("Member created.");
+    } else {
+      setMsg(data?.error || "Failed to create member");
+      toast.error(data?.error || "Failed to create member");
     }
   }
 
@@ -67,20 +73,24 @@ export default function MemberForm() {
           value={firstName}
           onChange={e => setFirst(e.target.value)}
           required
+          autoComplete="given-name"
         />
         <input
           className="input"
           placeholder="Last name (optional)"
           value={lastName}
           onChange={e => setLast(e.target.value)}
+          autoComplete="family-name"
         />
         <select
           className="input"
           value={gender}
           onChange={e => setGender(e.target.value as Gender)}
         >
-          <option>UNKNOWN</option><option>MALE</option>
-          <option>FEMALE</option><option>OTHER</option>
+          <option>UNKNOWN</option>
+          <option>MALE</option>
+          <option>FEMALE</option>
+          <option>OTHER</option>
         </select>
         <input
           className="input"
@@ -97,22 +107,13 @@ export default function MemberForm() {
         onChange={e => setNotes(e.target.value)}
       />
 
-      {/* Relationship pickers */}
-      <PersonPicker label="Mother" value={mother} onChange={setMother} />
-      <PersonPicker label="Father" value={father} onChange={setFather} />
-      <PersonPicker
-        label="Child (link existing)"
-        value={child}
-        onChange={setChild}
-        allowCreate={false} // keep child as existing only
-      />
-
       <div className="flex items-center gap-2">
         <button className="btn btn-primary" onClick={submit} disabled={busy}>
           {busy ? "Creating…" : "Create member"}
         </button>
-        {msg && <span className="text-sm ">{msg}</span>}
+        {msg && <span className="text-sm">{msg}</span>}
       </div>
+      <MyFamilyDashboard />
     </div>
   );
 }

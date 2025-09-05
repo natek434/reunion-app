@@ -1,4 +1,3 @@
-// src/components/family/link-account-person.tsx
 "use client";
 
 import { useState } from "react";
@@ -8,12 +7,16 @@ import { ensureCsrfToken } from "@/lib/csrf-client";
 
 export default function LinkAccountPerson({
   mePersonId,
+  mePersonLabel,
   onLinked,
 }: {
   mePersonId: string | null;
+  mePersonLabel?: string | null; // friendly name from parent
   onLinked?: () => void;
 }) {
-  const [selected, setSelected] = useState<PersonOption | null>(mePersonId ? { id: mePersonId, label: mePersonId } : null);
+  const [selected, setSelected] = useState<PersonOption | null>(
+    mePersonId ? { id: mePersonId, label: mePersonLabel || "Your person" } : null
+  );
   const [busy, setBusy] = useState(false);
 
   async function save() {
@@ -40,13 +43,16 @@ export default function LinkAccountPerson({
         label="Choose your Person"
         value={selected}
         onChange={setSelected}
-        // Only allow picking members the user owns (server filters in /api/me/family + picker should query accordingly)
       />
-      <div className="flex gap-2">
+      <div className="flex items-center gap-2">
         <button className="btn btn-primary" onClick={save} disabled={busy}>
           {busy ? "Saving…" : "Save link"}
         </button>
-        {mePersonId && <div className="text-xs text-muted-foreground">Currently linked: {mePersonId}</div>}
+        {mePersonId && (
+          <div className="text-xs text-muted-foreground">
+            Currently linked: <span className="font-medium">{mePersonLabel || selected?.label || "Unknown"}</span>
+          </div>
+        )}
       </div>
     </div>
   );

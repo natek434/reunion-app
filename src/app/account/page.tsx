@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import ProfileClient from "./profile-client";
-import LinkToPerson from "./link-to-person";
+import LinkToPerson from "@/components/family/link-account-person"
 import Link from "next/link";
 
 export const metadata = { title: "Account" };
