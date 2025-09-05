@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { isAdmin } from "@/lib/authz";
+import { isAdminish } from "@/lib/authz";
 import { withCsrf } from "@/lib/csrf-server";
 
 export const runtime = "nodejs";
@@ -22,7 +22,7 @@ export const PATCH = withCsrf(async (req: Request): Promise<Response> => {
   });
   if (!p) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  if (!isAdmin(session) && p.createdById !== session.user.id) {
+  if (!isAdminish(session) && p.createdById !== session.user.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

@@ -1,6 +1,26 @@
+// prisma/schema.prisma
+// Drop-in replacement schema focused on:
+// - Member ownership (+indexes)
+// - Relationship integrity (unique constraints)
+// - Relationship metadata (Json)
+// - Partner/Spouse support (Partnership table)
+// - Backwards compatibility with existing tables (NextAuth, RSVP, Gallery, etc.)
+
 generator client {
   provider = "prisma-client-js"
 }
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+/**
+ * =========================
+ * Auth / Roles / Enums
+ * =========================
+ */
 
 enum Role {
   ADMIN
@@ -8,18 +28,48 @@ enum Role {
   MEMBER
 }
 
-model GalleryItem {
-  id          String      @id @default(cuid())
-  userId      String
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  fileName    String
-  mimeType    String
-  name        String
-  size        Int?
-  webViewLink String?
-  createdAt   DateTime    @default(now())
-  AlbumItem   AlbumItem[]
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  UNKNOWN
 }
+
+// Biological vs whāngai
+enum ParentKind {
+  BIOLOGICAL
+  WHANGAI
+}
+
+// Explicit parent role (used to enforce at most one mother/father per kind)
+enum ParentRole {
+  MOTHER
+  FATHER
+  PARENT
+}
+
+// For partnerships (spouse/partner, civil union etc.)
+enum PartnershipKind {
+  MARRIED
+  PARTNER
+  CIVIL_UNION
+  DE_FACTO
+  OTHER
+}
+
+enum PartnershipStatus {
+  ACTIVE
+  SEPARATED
+  DIVORCED
+  WIDOWED
+  ENDED
+}
+
+/**
+ * =========================
+ * NextAuth core models
+ * =========================
+ */
 
 model Account {
   id                String  @id @default(cuid())
@@ -56,6 +106,152 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
+
+/**
+ * =========================
+ * Core Domain
+ * =========================
+ */
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+  bio           String?
+  role          Role      @default(MEMBER)
+
+  // Optional link to their own Person node
+  personId String? @unique
+  person   Person? @relation("UserPerson", fields: [personId], references: [id], onDelete: SetNull)
+
+  // People this user has created (ownership)
+  peopleCreated Person[] @relation("PersonCreatedBy")
+
+  accounts Account[]
+  sessions Session[]
+  gallery  GalleryItem[]
+  rsvps    RSVP[]
+  Album    Album[]
+
+  // Password resets
+  PasswordReset PasswordReset[]
+
+  // Relationship edges created by this user
+  parentEdges  ParentChild[]
+  partnerships Partnership[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Person {
+  id          String    @id @default(cuid())
+  firstName   String
+  lastName    String
+  displayName String?
+  gender      Gender    @default(UNKNOWN)
+  birthDate   DateTime?
+  deathDate   DateTime?
+  notes       String?
+  imageUrl    String?
+  locked      Boolean   @default(false)
+
+  createdById String
+  createdBy   User   @relation("PersonCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  deletedAt DateTime?
+
+  // Family edges
+  parents  ParentChild[] @relation("PC_child")
+  children ParentChild[] @relation("PC_parent")
+
+  // Optional mapping back to a user
+  user User? @relation("UserPerson")
+
+  // ✅ Back-relations for partnerships (rename fields as you like)
+  partnersA Partnership[] @relation("PartnerA")
+  partnersB Partnership[] @relation("PartnerB")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([lastName, firstName])
+  @@index([deletedAt])
+  @@index([createdById])
+}
+
+/**
+ * Parent/Child edges with:
+ * - Unique prevention of duplicate edges per kind
+ * - At most one MOTHER and one FATHER per child per kind
+ * - Ownership of the edge (createdById) for audit/authorization in code
+ * - Optional metadata Json for extra annotations
+ */
+model ParentChild {
+  id       String     @id @default(cuid())
+  parentId String
+  childId  String
+  parent   Person     @relation("PC_parent", fields: [parentId], references: [id], onDelete: Cascade)
+  child    Person     @relation("PC_child", fields: [childId], references: [id], onDelete: Cascade)
+  role     ParentRole
+  kind     ParentKind @default(BIOLOGICAL)
+  metadata Json? // arbitrary extra info (notes, certainty score, source doc, etc.)
+
+  // Who created this relationship edge
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  // NOTE: To prevent self-edges (parentId == childId) at DB level,
+  // add a raw SQL CHECK via a migration:
+  // ALTER TABLE "ParentChild" ADD CONSTRAINT "pc_not_self" CHECK ("parentId" <> "childId");
+
+  // prevent duplicates
+  @@unique([parentId, childId, kind]) // allow same (parent,child) twice only if kind differs
+  @@unique([childId, kind, role]) // at most one MOTHER and one FATHER per kind for a child
+  @@index([parentId])
+  @@index([childId])
+  @@index([createdById]) // for owner-scope queries
+}
+
+/**
+ * Partnership (spouse/partner) edges.
+ * We canonicalize application-level by always storing the lower cuid in aId and higher in bId.
+ * DB-level uniqueness on (aId, bId) prevents duplicates if the app follows the ordering rule.
+ */
+model Partnership {
+  id  String @id @default(cuid())
+  aId String
+  bId String
+  a   Person @relation("PartnerA", fields: [aId], references: [id], onDelete: Cascade)
+  b   Person @relation("PartnerB", fields: [bId], references: [id], onDelete: Cascade)
+
+  kind      PartnershipKind   @default(PARTNER)
+  status    PartnershipStatus @default(ACTIVE)
+  startDate DateTime?
+  endDate   DateTime?
+  metadata  Json?
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([aId, bId])
+  @@index([aId])
+  @@index([bId])
+  @@index([createdById])
+}
+
+/**
+ * =========================
+ * Events / RSVP
+ * =========================
+ */
 
 model Event {
   id          String          @id @default(cuid())
@@ -106,85 +302,23 @@ enum RSVPStatus {
   NO
 }
 
-enum Gender {
-  MALE
-  FEMALE
-  OTHER
-  UNKNOWN
-}
+/**
+ * =========================
+ * Gallery / Albums
+ * =========================
+ */
 
-enum ParentKind {
-  BIOLOGICAL
-  WHANGAI
-}
-
-model User {
-  id            String          @id @default(cuid())
-  name          String?
-  email         String?         @unique
-  emailVerified DateTime?
-  image         String?
-  passwordHash  String?
-  bio           String?
-  role          Role            @default(MEMBER)
-  personId      String?         @unique
-  person        Person?         @relation("UserPerson", fields: [personId], references: [id], onDelete: SetNull)
-  peopleCreated Person[]        @relation("PersonCreatedBy")
-  accounts      Account[]
-  sessions      Session[]
-  gallery       GalleryItem[]
-  rsvps         RSVP[]
-  Album         Album[]
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  PasswordReset PasswordReset[]
-}
-
-model Person {
-  id          String        @id @default(cuid())
-  firstName   String
-  lastName    String
-  displayName String?
-  gender      Gender        @default(UNKNOWN)
-  birthDate   DateTime?
-  deathDate   DateTime?
-  notes       String?
-  imageUrl    String?
-  locked      Boolean       @default(false)
-  createdById String
-  createdBy   User          @relation("PersonCreatedBy", fields: [createdById], references: [id])
-  deletedAt   DateTime?
-  parents     ParentChild[] @relation("PC_child")
-  children    ParentChild[] @relation("PC_parent")
-  user        User?         @relation("UserPerson")
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-
-  @@index([lastName, firstName])
-  @@index([deletedAt])
-}
-
-model ParentChild {
-  id        String     @id @default(cuid())
-  parentId  String
-  childId   String
-  parent    Person     @relation("PC_parent", fields: [parentId], references: [id], onDelete: Cascade)
-  child     Person     @relation("PC_child", fields: [childId], references: [id], onDelete: Cascade)
-  role      ParentRole
-  kind      ParentKind @default(BIOLOGICAL) // <-- NEW
-  createdAt DateTime   @default(now())
-
-  // prevent duplicates
-  @@unique([parentId, childId, kind]) // allow same parent twice only if kind differs
-  @@unique([childId, kind, role]) // <= ensures at most one MOTHER/FATHER per kind
-  @@index([parentId])
-  @@index([childId])
-}
-
-enum ParentRole {
-  MOTHER
-  FATHER
-  PARENT
+model GalleryItem {
+  id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileName    String
+  mimeType    String
+  name        String
+  size        Int?
+  webViewLink String?
+  createdAt   DateTime    @default(now())
+  AlbumItem   AlbumItem[]
 }
 
 model AlbumItem {
@@ -211,6 +345,12 @@ model Album {
   updatedAt   DateTime    @updatedAt
 }
 
+/**
+ * =========================
+ * Password reset
+ * =========================
+ */
+
 model PasswordReset {
   id     String @id @default(cuid())
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -223,9 +363,4 @@ model PasswordReset {
 
   @@index([userId])
   @@index([expiresAt])
-}
-
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
 }

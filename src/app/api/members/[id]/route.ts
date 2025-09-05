@@ -1,24 +1,39 @@
-// src/app/api/members/[id]/route.ts
-import { NextResponse } from "next/server";
-import { updatePerson, deletePerson } from "@/services/personService";
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { requireUser, assertPersonOwnerOrAdmin } from "@/lib/authz";
+import { updatePerson, softDeletePerson } from "@/server/services/members";
 
-export const runtime = "nodejs";
+const UpdatePersonSchema = z.object({
+  firstName: z.string().min(1).optional(),
+  lastName: z.string().min(1).optional(),
+  displayName: z.string().optional(),
+  gender: z.enum(["MALE", "FEMALE", "OTHER", "UNKNOWN"]).optional(),
+  birthDate: z.string().optional(),
+  imageUrl: z.string().url().optional(),
+  notes: z.string().optional(),
+});
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const updates = await req.json();
-    await updatePerson(params.id, updates);
-    return NextResponse.json({ ok: true });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 400 });
+    const actor = await requireUser();
+    await assertPersonOwnerOrAdmin(params.id, actor.userId, actor.role);
+    const body = UpdatePersonSchema.parse(await req.json());
+    const person = await updatePerson(params.id, body, actor);
+    return NextResponse.json(person);
+  } catch (err: any) {
+    const status = err?.status ?? 500;
+    return NextResponse.json({ error: err?.message ?? "Internal error" }, { status });
   }
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await deletePerson(params.id);
-    return NextResponse.json({ ok: true });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 400 });
+    const actor = await requireUser();
+    await assertPersonOwnerOrAdmin(params.id, actor.userId, actor.role);
+    const person = await softDeletePerson(params.id);
+    return NextResponse.json(person);
+  } catch (err: any) {
+    const status = err?.status ?? 500;
+    return NextResponse.json({ error: err?.message ?? "Internal error" }, { status });
   }
 }
