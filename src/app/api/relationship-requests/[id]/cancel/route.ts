@@ -2,26 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireUser, isAdminish } from "@/lib/authz";
 
-// Force dynamic evaluation so that the handler always executes on each
-// request rather than being statically optimised by Next.js.
+// Enforce dynamic rendering for this endpoint. Without this, Next.js may
+// statically optimise the route which can cause stale data to be served.
 export const dynamic = "force-dynamic";
 
 /**
- * Reject a pending relationship request. Only the designated approver
- * (or an admin) may reject the request. If the request has already
- * been handled (approved, rejected or canceled) a 409 response is
- * returned. The request is marked with the REJECTED status upon
- * success.
+ * Cancel a pending relationship request. Only the user who created the
+ * request (or an admin) may cancel it. If the request is not found or
+ * has already been handled, an appropriate error is returned. Upon
+ * success the request’s status is set to CANCELED.
  */
 export async function POST(_: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const actor = await requireUser();
-  // In the app directory, `params` is a promise that must be awaited.
   const { id } = await ctx.params;
   const r = await prisma.relationshipRequest.findUnique({ where: { id } });
   if (!r) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  if (r.approverUserId !== actor.userId && !isAdminish(actor.role)) {
+  if (r.createdByUserId !== actor.userId && !isAdminish(actor.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   if (r.status !== "PENDING") {
@@ -29,7 +27,7 @@ export async function POST(_: NextRequest, ctx: { params: Promise<{ id: string }
   }
   await prisma.relationshipRequest.update({
     where: { id },
-    data: { status: "REJECTED" },
+    data: { status: "CANCELED" },
   });
   return NextResponse.json({ ok: true }, { status: 200 });
 }

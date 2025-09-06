@@ -14,20 +14,29 @@ export default function LinkAccountPerson({
   mePersonLabel?: string | null; // friendly name from parent
   onLinked?: () => void;
 }) {
-  const [selected, setSelected] = useState<PersonOption | null>(null);
+  // Use PersonOption shape exactly: { id, displayName, ... }
+  const [selected, setSelected] = useState<PersonOption | null>(
+    mePersonId
+      ? {
+          id: mePersonId,
+          // If parent passed a friendly label, use it; otherwise empty string is fine.
+          displayName: (mePersonLabel || "").trim(),
+        }
+      : null
+  );
+  const [busy, setBusy] = useState(false);
 
   // Keep local selection in sync with incoming props (handles late fetches)
   useEffect(() => {
     if (mePersonId) {
       setSelected({
         id: mePersonId,
-        label: (mePersonLabel || "").trim() || "Your person",
+        displayName: (mePersonLabel || "").trim(),
       });
     } else {
       setSelected(null);
     }
   }, [mePersonId, mePersonLabel]);
-  const [busy, setBusy] = useState(false);
 
   async function save() {
     setBusy(true);
@@ -47,6 +56,11 @@ export default function LinkAccountPerson({
     onLinked?.();
   }
 
+  const linkedLabel =
+    (selected?.displayName || "").trim() ||
+    (mePersonLabel || "").trim() ||
+    "Unknown";
+
   return (
     <div className="grid gap-3">
       <PersonPicker
@@ -60,12 +74,7 @@ export default function LinkAccountPerson({
         </button>
         {(mePersonId || selected) && (
           <div className="text-xs text-muted-foreground">
-            Currently linked:{" "}
-            <span className="font-medium">
-              {(selected?.label || "").trim() ||
-                (mePersonLabel || "").trim() ||
-                "Your person"}
-            </span>
+            Currently linked: <span className="font-medium">{linkedLabel}</span>
           </div>
         )}
       </div>

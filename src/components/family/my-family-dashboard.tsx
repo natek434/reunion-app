@@ -8,8 +8,11 @@ import FamilyGraph from "@/components/family/family-graph";
 import PersonPicker, { PersonOption } from "@/components/ui/person-picker";
 import { toast } from "sonner";
 import { ensureCsrfToken } from "@/lib/csrf-client";
+import RelationshipRequestsPanel from "../requests/RelationshipRequestsPanel";
 
 type Gender = "MALE" | "FEMALE" | "OTHER" | "UNKNOWN";
+
+
 
 export type PersonDTO = {
   id: string;
@@ -194,7 +197,7 @@ export default function MyFamilyDashboard() {
           </ul>
         )}
       </div>
-
+         <RelationshipRequestsPanel />
       {/* Link account to Person */}
       <div className="card p-4">
         <h2 className="text-lg font-semibold mb-2">Link my account to a person</h2>

@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import ProfileClient from "./profile-client";
-import LinkToPerson from "@/components/family/link-account-person"
+import LinkAccountPerson from "@/components/family/link-account-person";
 import Link from "next/link";
 
 export const metadata = { title: "Account" };
@@ -24,8 +24,8 @@ export default async function AccountPage() {
   if (!user) redirect("/signin?callbackUrl=/account");
 
   const hasPassword = !!user.passwordHash;
-  const providers = user.accounts.map(a => a.provider);
-  const isAdmin = user.role === "ADMIN"; // change to (user.role === "ADMIN" || user.role === "EDITOR") if editors count
+  const providers = user.accounts.map((a) => a.provider);
+  const isAdmin = user.role === "ADMIN"; // or (user.role === "ADMIN" || user.role === "EDITOR")
 
   return (
     <section className="grid gap-6 md:grid-cols-2">
@@ -42,13 +42,18 @@ export default async function AccountPage() {
           providers={providers}
         />
 
-        {/* Keep: link account -> existing person (no creation here) */}
+        {/* Link account -> existing person (no creation here) */}
         <section className="mt-6 border-t pt-6">
           <h2 className="text-lg font-semibold mb-2">Link to my person</h2>
-          <LinkToPerson current={user.person ?? null} />
+
+          {/* FIX: pass the props LinkAccountPerson expects */}
+          <LinkAccountPerson
+            mePersonId={user.person?.id ?? null}
+            mePersonLabel={user.person?.displayName ?? null}
+          />
         </section>
 
-        {/* New: CTA to the user’s family dashboard (list + visualize + edit relationships) */}
+        {/* CTA to the user’s family dashboard */}
         <section className="mt-6 border-t pt-6">
           <h2 className="text-lg font-semibold mb-2">Manage my family</h2>
           <p className="text-sm mb-3">
@@ -59,7 +64,7 @@ export default async function AccountPage() {
           </Link>
         </section>
 
-        {/* Optional: admin shortcuts (still no creation here) */}
+        {/* Optional: admin shortcuts */}
         {isAdmin && (
           <section className="mt-6 border-t pt-6">
             <h2 className="text-lg font-semibold mb-2">Admin tools</h2>
@@ -77,7 +82,7 @@ export default async function AccountPage() {
         <h2 className="text-xl font-semibold mb-2">Connected accounts</h2>
         <ul className="space-y-1">
           {providers.length === 0 && <li>None</li>}
-          {providers.map(p => (
+          {providers.map((p) => (
             <li key={p} className="capitalize">{p}</li>
           ))}
         </ul>

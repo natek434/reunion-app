@@ -58,49 +58,87 @@ export default function RelationshipQuickEdit({
   onChanged?: () => void;
   onClose?: () => void;
 }) {
+  // --- state (always declared in same order) ---
   const [pickFather, setPickFather] = useState<PersonOption | null>(null);
   const [pickMother, setPickMother] = useState<PersonOption | null>(null);
   const [pickChild, setPickChild] = useState<PersonOption | null>(null);
   const [pickPartner, setPickPartner] = useState<PersonOption | null>(null);
+  const [fatherKind, setFatherKind] = useState<Kind>("BIOLOGICAL");
+  const [motherKind, setMotherKind] = useState<Kind>("BIOLOGICAL");
+  const [addChildKind, setAddChildKind] = useState<Kind>("BIOLOGICAL");
   const [busy, setBusy] = useState(false);
 
+  // --- memos (unconditional) ---
   const options: PersonOption[] = useMemo(
     () => people.map(p => ({ id: p.id, label: labelOf(p) })),
     [people]
   );
 
+  const selected = useMemo(
+    () => (selectedId ? getById(people, selectedId) : null),
+    [people, selectedId]
+  );
+
+  const parentEdges = useMemo(
+    () => (selectedId ? parentChild.filter(e => e.childId === selectedId) : []),
+    [parentChild, selectedId]
+  );
+  const childEdges = useMemo(
+    () => (selectedId ? parentChild.filter(e => e.parentId === selectedId) : []),
+    [parentChild, selectedId]
+  );
+
+  const fatherEdge = useMemo(() => {
+    const byRole = parentEdges.find(e => e.role === "FATHER");
+    if (byRole) return byRole;
+    const byGender = parentEdges.find(e => getById(people, e.parentId)?.gender === "MALE");
+    return byGender ?? null;
+  }, [parentEdges, people]);
+
+  const motherEdge = useMemo(() => {
+    const byRole = parentEdges.find(e => e.role === "MOTHER");
+    if (byRole) return byRole;
+    const byGender = parentEdges.find(e => getById(people, e.parentId)?.gender === "FEMALE");
+    return byGender ?? null;
+  }, [parentEdges, people]);
+
+  const currentFather = useMemo(
+    () => (fatherEdge ? getById(people, fatherEdge.parentId) : null),
+    [fatherEdge, people]
+  );
+  const currentMother = useMemo(
+    () => (motherEdge ? getById(people, motherEdge.parentId) : null),
+    [motherEdge, people]
+  );
+  const currentChildren = useMemo(
+    () => childEdges.map(e => getById(people, e.childId)).filter(Boolean) as PersonDTO[],
+    [childEdges, people]
+  );
+
+  const myPartnerships = useMemo(
+    () => (selectedId ? partnerships.filter(p => p.aId === selectedId || p.bId === selectedId) : []),
+    [partnerships, selectedId]
+  );
+
+  // --- effects (unconditional) ---
+  // clear picks & reset kinds when the selection changes
   useEffect(() => {
     setPickFather(null);
     setPickMother(null);
     setPickChild(null);
     setPickPartner(null);
+    setFatherKind("BIOLOGICAL");
+    setMotherKind("BIOLOGICAL");
+    setAddChildKind("BIOLOGICAL");
   }, [selectedId]);
 
-  if (!selectedId) {
-    return <div className="text-sm text-muted-foreground">Choose a person above to edit their relationships.</div>;
-  }
+  // sync kind selectors to existing edges (if present)
+  useEffect(() => {
+    setFatherKind(((fatherEdge?.kind as Kind) ?? "BIOLOGICAL"));
+    setMotherKind(((motherEdge?.kind as Kind) ?? "BIOLOGICAL"));
+  }, [fatherEdge?.kind, motherEdge?.kind]);
 
-  const selected = getById(people, selectedId)!;
-
-  // Current edges
-  const parentEdges = parentChild.filter(e => e.childId === selectedId);
-  const childEdges = parentChild.filter(e => e.parentId === selectedId);
-
-  const fatherEdge =
-    parentEdges.find(e => e.role === "FATHER") ??
-    parentEdges.find(e => getById(people, e.parentId)?.gender === "MALE") ??
-    null;
-  const motherEdge =
-    parentEdges.find(e => e.role === "MOTHER") ??
-    parentEdges.find(e => getById(people, e.parentId)?.gender === "FEMALE") ??
-    null;
-
-  const currentFather = fatherEdge ? getById(people, fatherEdge.parentId) : null;
-  const currentMother = motherEdge ? getById(people, motherEdge.parentId) : null;
-  const currentChildren = childEdges.map(e => getById(people, e.childId)).filter(Boolean) as PersonDTO[];
-
-  const myPartnerships = partnerships.filter(p => p.aId === selectedId || p.bId === selectedId);
-
+  // --- helpers ---
   async function getCsrf(): Promise<string | null> {
     try {
       const t = await ensureCsrfToken();
@@ -112,45 +150,28 @@ export default function RelationshipQuickEdit({
     }
   }
 
-  async function postJson(url: string, method: "POST" | "DELETE", body: any, includeCsrf = true) {
+  async function postJson(url: string, method: "POST" | "DELETE", body: any) {
     const headers: Record<string, string> = { "content-type": "application/json" };
-    if (includeCsrf) {
-      const csrf = await getCsrf();
-      if (!csrf) return { ok: false, status: 0, json: {} as any };
-      headers["X-Csrf-Token"] = csrf;
-    }
-    const res = await fetch(url, {
-      method,
-      headers,
-      body: JSON.stringify(body),
-    });
+    const csrf = await getCsrf();
+    if (!csrf) return { ok: false, status: 0, json: {} as any };
+    headers["X-Csrf-Token"] = csrf;
+
+    const res = await fetch(url, { method, headers, body: JSON.stringify(body) });
     let json: any = {};
-    try {
-      json = await res.json();
-    } catch {
-      // ignore
-    }
+    try { json = await res.json(); } catch {}
     return { ok: res.ok, status: res.status, json };
   }
 
-  /** Try direct link; if 403, create a request instead. */
   async function linkParentOrRequest(parentId: string, childId: string, role: Role, kind: Kind) {
-    // 1) try direct
     const res = await postJson("/api/relationships/parent-child", "POST", { parentId, childId, role, kind });
     if (res.ok) return { ok: true, requested: false };
-
     if (res.status !== 403) {
       toast.error(res.json?.error || "Failed to link");
       return { ok: false, requested: false };
     }
-
-    // 2) fallback to request
-    const reqRes = await postJson(
-      "/api/relationship-requests",
-      "POST",
-      { type: "PARENT_CHILD", parentId, childId, role, kind, message: "" },
-      false // most apps don't require CSRF for this route; set true if you do
-    );
+    const reqRes = await postJson("/api/relationship-requests", "POST", {
+      type: "PARENT_CHILD", parentId, childId, role, kind, message: ""
+    });
     if (!reqRes.ok) {
       toast.error(reqRes.json?.error || "Could not create approval request");
       return { ok: false, requested: false };
@@ -159,22 +180,16 @@ export default function RelationshipQuickEdit({
     return { ok: true, requested: true };
   }
 
-  /** Try direct partnership upsert; if 403, create a request instead. */
   async function upsertPartnershipOrRequest(aId: string, bId: string) {
     const res = await postJson("/api/relationships/partnership", "POST", { aId, bId, status: "ACTIVE" });
     if (res.ok) return { ok: true, requested: false };
-
     if (res.status !== 403) {
       toast.error(res.json?.error || "Failed to set partnership");
       return { ok: false, requested: false };
     }
-
-    const reqRes = await postJson(
-      "/api/relationship-requests",
-      "POST",
-      { type: "PARTNERSHIP", aId, bId, status: "ACTIVE", message: "" },
-      false
-    );
+    const reqRes = await postJson("/api/relationship-requests", "POST", {
+      type: "PARTNERSHIP", aId, bId, status: "ACTIVE", message: ""
+    });
     if (!reqRes.ok) {
       toast.error(reqRes.json?.error || "Could not create approval request");
       return { ok: false, requested: false };
@@ -183,155 +198,124 @@ export default function RelationshipQuickEdit({
     return { ok: true, requested: true };
   }
 
-  // Father actions
+  // --- actions (guard against null selection) ---
   async function setFather() {
-    if (!pickFather) return;
+    if (!selectedId || !pickFather) return;
     setBusy(true);
     try {
       if (currentFather && currentFather.id !== pickFather.id) {
-        // optional: require explicit unlink first; keeping behavior simple
         const del = await postJson("/api/relationships/parent-child", "DELETE", {
-          parentId: currentFather.id,
-          childId: selectedId,
+          parentId: currentFather.id, childId: selectedId
         });
-        if (!del.ok) {
-          toast.error(del.json?.error || "Failed to remove existing father");
-          return;
-        }
+        if (!del.ok) return toast.error(del.json?.error || "Failed to remove existing father");
       }
-      const { ok } = await linkParentOrRequest(pickFather.id, selectedId!, "FATHER", "BIOLOGICAL");
+      const { ok } = await linkParentOrRequest(pickFather.id, selectedId, "FATHER", fatherKind);
       if (ok) onChanged?.();
-    } finally {
-      setBusy(false);
-    }
+    } finally { setBusy(false); }
+  }
+  async function updateFatherKind() {
+    if (!selectedId || !currentFather) return;
+    setBusy(true);
+    try {
+      const { ok } = await linkParentOrRequest(currentFather.id, selectedId, "FATHER", fatherKind);
+      if (ok) onChanged?.();
+    } finally { setBusy(false); }
   }
   async function clearFather() {
-    if (!currentFather) return;
+    if (!selectedId || !currentFather) return;
     setBusy(true);
     try {
       const res = await postJson("/api/relationships/parent-child", "DELETE", {
-        parentId: currentFather.id,
-        childId: selectedId,
+        parentId: currentFather.id, childId: selectedId
       });
-      if (!res.ok) {
-        toast.error(res.json?.error || "Failed to remove father");
-        return;
-      }
+      if (!res.ok) return toast.error(res.json?.error || "Failed to remove father");
       onChanged?.();
-    } finally {
-      setBusy(false);
-    }
+    } finally { setBusy(false); }
   }
 
-  // Mother actions
   async function setMother() {
-    if (!pickMother) return;
+    if (!selectedId || !pickMother) return;
     setBusy(true);
     try {
       if (currentMother && currentMother.id !== pickMother.id) {
         const del = await postJson("/api/relationships/parent-child", "DELETE", {
-          parentId: currentMother.id,
-          childId: selectedId,
+          parentId: currentMother.id, childId: selectedId
         });
-        if (!del.ok) {
-          toast.error(del.json?.error || "Failed to remove existing mother");
-          return;
-        }
+        if (!del.ok) return toast.error(del.json?.error || "Failed to remove existing mother");
       }
-      const { ok } = await linkParentOrRequest(pickMother.id, selectedId!, "MOTHER", "BIOLOGICAL");
+      const { ok } = await linkParentOrRequest(pickMother.id, selectedId, "MOTHER", motherKind);
       if (ok) onChanged?.();
-    } finally {
-      setBusy(false);
-    }
+    } finally { setBusy(false); }
+  }
+  async function updateMotherKind() {
+    if (!selectedId || !currentMother) return;
+    setBusy(true);
+    try {
+      const { ok } = await linkParentOrRequest(currentMother.id, selectedId, "MOTHER", motherKind);
+      if (ok) onChanged?.();
+    } finally { setBusy(false); }
   }
   async function clearMother() {
-    if (!currentMother) return;
+    if (!selectedId || !currentMother) return;
     setBusy(true);
     try {
       const res = await postJson("/api/relationships/parent-child", "DELETE", {
-        parentId: currentMother.id,
-        childId: selectedId,
+        parentId: currentMother.id, childId: selectedId
       });
-      if (!res.ok) {
-        toast.error(res.json?.error || "Failed to remove mother");
-        return;
-      }
+      if (!res.ok) return toast.error(res.json?.error || "Failed to remove mother");
       onChanged?.();
-    } finally {
-      setBusy(false);
-    }
+    } finally { setBusy(false); }
   }
 
-  // Children actions
   async function addChild() {
-    if (!pickChild) return;
+    if (!selectedId || !pickChild) return;
     setBusy(true);
     try {
-      const role: Role = guessRoleFromGender(selected.gender);
-      const { ok } = await linkParentOrRequest(selectedId!, pickChild.id, role, "BIOLOGICAL");
-      if (ok) {
-        setPickChild(null);
-        onChanged?.();
-      }
-    } finally {
-      setBusy(false);
-    }
+      const role: Role = guessRoleFromGender(selected?.gender);
+      const { ok } = await linkParentOrRequest(selectedId, pickChild.id, role, addChildKind);
+      if (ok) { setPickChild(null); onChanged?.(); }
+    } finally { setBusy(false); }
   }
   async function unlinkChild(childId: string) {
+    if (!selectedId) return;
     setBusy(true);
     try {
       const res = await postJson("/api/relationships/parent-child", "DELETE", {
-        parentId: selectedId,
-        childId,
+        parentId: selectedId, childId
       });
-      if (!res.ok) {
-        toast.error(res.json?.error || "Failed to remove child");
-        return;
-      }
+      if (!res.ok) return toast.error(res.json?.error || "Failed to remove child");
       onChanged?.();
-    } finally {
-      setBusy(false);
-    }
+    } finally { setBusy(false); }
   }
 
-  // Partnerships
   async function upsertPartnership() {
-    if (!pickPartner) return;
+    if (!selectedId || !pickPartner) return;
     setBusy(true);
     try {
-      const { ok } = await upsertPartnershipOrRequest(selectedId!, pickPartner.id);
-      if (ok) {
-        setPickPartner(null);
-        onChanged?.();
-      }
-    } finally {
-      setBusy(false);
-    }
+      const { ok } = await upsertPartnershipOrRequest(selectedId, pickPartner.id);
+      if (ok) { setPickPartner(null); onChanged?.(); }
+    } finally { setBusy(false); }
+  }
+  async function deletePartnershipByPartnerId(partnerId: string) {
+    if (!selectedId) return;
+    setBusy(true);
+    try {
+      const [A, B] = selectedId < partnerId ? [selectedId, partnerId] : [partnerId, selectedId];
+      const match = partnerships.find(p => p.aId === A && p.bId === B);
+      if (!match) return toast.error("No partnership found");
+      const res = await postJson("/api/relationships/partnership", "DELETE", { id: match.id });
+      if (!res.ok) return toast.error(res.json?.error || "Failed to delete partnership");
+      onChanged?.();
+    } finally { setBusy(false); }
   }
 
-  async function deletePartnershipByPartnerId(partnerId: string) {
-    setBusy(true);
-    try {
-      const [A, B] = selectedId! < partnerId ? [selectedId!, partnerId] : [partnerId, selectedId!];
-      const match = partnerships.find(p => p.aId === A && p.bId === B);
-      if (!match) {
-        toast.error("No partnership found");
-        return;
-      }
-      const res = await postJson("/api/relationships/partnership", "DELETE", { id: match.id });
-      if (!res.ok) {
-        toast.error(res.json?.error || "Failed to delete partnership");
-        return;
-      }
-      onChanged?.();
-    } finally {
-      setBusy(false);
-    }
+  // --- render ---
+  if (!selected) {
+    return <div className="text-sm text-muted-foreground">Choose a person above to edit their relationships.</div>;
   }
 
   return (
     <div className="card p-4">
-      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-semibold">
           Editing: <span className="font-bold">{labelOf(selected)}</span>
@@ -339,25 +323,51 @@ export default function RelationshipQuickEdit({
         <button className="btn btn-ghost btn-sm" onClick={onClose}>Clear selection</button>
       </div>
 
-      {/* Top row: Father | Selected | Mother */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Father */}
         <div className="card p-3">
           <div className="text-sm font-medium mb-2">Father</div>
           {currentFather ? (
-            <div className="flex items-center justify-between">
-              <div className="text-sm">{labelOf(currentFather)}</div>
-              <button className="btn btn-danger btn-sm" onClick={clearFather} disabled={busy}>Remove</button>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="text-sm">
+                  {labelOf(currentFather)}{" "}
+                  <span className="text-xs text-muted-foreground">
+                    ({(fatherEdge?.kind as Kind) ?? "BIOLOGICAL"})
+                  </span>
+                </div>
+                <button className="btn btn-danger btn-sm" onClick={clearFather} disabled={busy}>Remove</button>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs">Kind</label>
+                <select
+                  className="border rounded px-2 py-1 text-sm"
+                  value={fatherKind}
+                  onChange={e => setFatherKind(e.target.value as Kind)}
+                  aria-label="Father relationship kind"
+                >
+                  <option value="BIOLOGICAL">Biological</option>
+                  <option value="WHANGAI">Whāngai</option>
+                </select>
+                <button className="btn btn-outline btn-sm" onClick={updateFatherKind} disabled={busy}>
+                  Update Kind
+                </button>
+              </div>
             </div>
           ) : (
             <>
-              <PersonPicker
-                label="Add/replace father"
-                value={pickFather}
-                onChange={setPickFather}
-                options={options}
-              />
-              <div className="mt-2">
+              <PersonPicker label="Add/replace father" value={pickFather} onChange={setPickFather} options={options} />
+              <div className="flex items-center gap-2 mt-2">
+                <label className="text-xs">Kind</label>
+                <select
+                  className="border rounded px-2 py-1 text-sm"
+                  value={fatherKind}
+                  onChange={e => setFatherKind(e.target.value as Kind)}
+                  aria-label="Father relationship kind"
+                >
+                  <option value="BIOLOGICAL">Biological</option>
+                  <option value="WHANGAI">Whāngai</option>
+                </select>
                 <button className="btn btn-outline btn-sm" onClick={setFather} disabled={busy || !pickFather}>
                   Set Father
                 </button>
@@ -378,19 +388,46 @@ export default function RelationshipQuickEdit({
         <div className="card p-3">
           <div className="text-sm font-medium mb-2">Mother</div>
           {currentMother ? (
-            <div className="flex items-center justify-between">
-              <div className="text-sm">{labelOf(currentMother)}</div>
-              <button className="btn btn-danger btn-sm" onClick={clearMother} disabled={busy}>Remove</button>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="text-sm">
+                  {labelOf(currentMother)}{" "}
+                  <span className="text-xs text-muted-foreground">
+                    ({(motherEdge?.kind as Kind) ?? "BIOLOGICAL"})
+                  </span>
+                </div>
+                <button className="btn btn-danger btn-sm" onClick={clearMother} disabled={busy}>Remove</button>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs">Kind</label>
+                <select
+                  className="border rounded px-2 py-1 text-sm"
+                  value={motherKind}
+                  onChange={e => setMotherKind(e.target.value as Kind)}
+                  aria-label="Mother relationship kind"
+                >
+                  <option value="BIOLOGICAL">Biological</option>
+                  <option value="WHANGAI">Whāngai</option>
+                </select>
+                <button className="btn btn-outline btn-sm" onClick={updateMotherKind} disabled={busy}>
+                  Update Kind
+                </button>
+              </div>
             </div>
           ) : (
             <>
-              <PersonPicker
-                label="Add/replace mother"
-                value={pickMother}
-                onChange={setPickMother}
-                options={options}
-              />
-              <div className="mt-2">
+              <PersonPicker label="Add/replace mother" value={pickMother} onChange={setPickMother} options={options} />
+              <div className="flex items-center gap-2 mt-2">
+                <label className="text-xs">Kind</label>
+                <select
+                  className="border rounded px-2 py-1 text-sm"
+                  value={motherKind}
+                  onChange={e => setMotherKind(e.target.value as Kind)}
+                  aria-label="Mother relationship kind"
+                >
+                  <option value="BIOLOGICAL">Biological</option>
+                  <option value="WHANGAI">Whāngai</option>
+                </select>
                 <button className="btn btn-outline btn-sm" onClick={setMother} disabled={busy || !pickMother}>
                   Set Mother
                 </button>
@@ -406,7 +443,16 @@ export default function RelationshipQuickEdit({
             <div className="md:col-span-2">
               <PersonPicker label="Add child" value={pickChild} onChange={setPickChild} options={options} />
             </div>
-            <div className="md:col-span-1 flex items-end">
+            <div className="md:col-span-1 flex items-end gap-2">
+              <select
+                className="border rounded px-2 py-1 text-sm"
+                value={addChildKind}
+                onChange={e => setAddChildKind(e.target.value as Kind)}
+                aria-label="Child relationship kind"
+              >
+                <option value="BIOLOGICAL">Biological</option>
+                <option value="WHANGAI">Whāngai</option>
+              </select>
               <button className="btn btn-outline btn-sm w-full md:w-auto" onClick={addChild} disabled={busy || !pickChild}>
                 Add Child
               </button>
@@ -415,14 +461,22 @@ export default function RelationshipQuickEdit({
 
           {currentChildren.length > 0 ? (
             <ul className="mt-3 divide-y">
-              {currentChildren.map(ch => (
-                <li key={ch.id} className="py-2 flex items-center justify-between">
-                  <div className="text-sm">{labelOf(ch)}</div>
-                  <button className="btn btn-danger btn-sm" onClick={() => unlinkChild(ch.id)} disabled={busy}>
-                    Remove
-                  </button>
-                </li>
-              ))}
+              {currentChildren.map(ch => {
+                const e = childEdges.find(edge => edge.childId === ch.id);
+                return (
+                  <li key={ch.id} className="py-2 flex items-center justify-between">
+                    <div className="text-sm">
+                      {labelOf(ch)}{" "}
+                      <span className="text-xs text-muted-foreground">
+                        ({(e?.kind as Kind) ?? "BIOLOGICAL"})
+                      </span>
+                    </div>
+                    <button className="btn btn-danger btn-sm" onClick={() => unlinkChild(ch.id)} disabled={busy}>
+                      Remove
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           ) : (
             <div className="mt-3 text-xs text-muted-foreground">No children linked yet.</div>
@@ -434,12 +488,7 @@ export default function RelationshipQuickEdit({
           <div className="text-sm font-medium mb-2">Partnerships</div>
           <div className="grid md:grid-cols-3 gap-3">
             <div className="md:col-span-2">
-              <PersonPicker
-                label="Set / update partner"
-                value={pickPartner}
-                onChange={setPickPartner}
-                options={options}
-              />
+              <PersonPicker label="Set / update partner" value={pickPartner} onChange={setPickPartner} options={options} />
             </div>
             <div className="md:col-span-1 flex items-end gap-2">
               <button className="btn btn-outline btn-sm w-full md:w-auto" onClick={upsertPartnership} disabled={busy || !pickPartner}>
