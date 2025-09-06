@@ -94,7 +94,7 @@ export default function ProfileClient({
             toast.error("Missing CSRF token. Please refresh the page and try again.");
             return;
           }
-      const res = await fetch("/api/upload", { method: "POST", headers: {"Content-Type": "application/json", "X-Csrf-Token": csrf}, body: fd });
+      const res = await fetch("/api/upload", { method: "POST", headers: {"X-Csrf-Token": csrf}, body: fd });
       const data = await res.json();
       if (!res.ok || !data?.id) throw new Error(data?.error || "Upload failed");
       setImage(`/api/files/${data.id}`);

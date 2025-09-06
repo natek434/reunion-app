@@ -11,8 +11,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
@@ -181,6 +181,44 @@ model Person {
   @@index([lastName, firstName])
   @@index([deletedAt])
   @@index([createdById])
+}
+
+enum RelationshipRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELED
+}
+
+enum RelationshipRequestKind {
+  PARENT_CHILD
+  PARTNERSHIP
+}
+
+model RelationshipRequest {
+  id              String @id @default(cuid())
+  createdByUserId String
+  approverUserId  String
+  // Normalize ordering so same request can't be spammed
+  fromPersonId    String
+  toPersonId      String
+
+  kind   RelationshipRequestKind
+  // For parent/child only:
+  role   String? // "MOTHER" | "FATHER" | "PARENT"
+  pcKind String? // "BIOLOGICAL" | "WHANGAI"
+
+  status     RelationshipRequestStatus @default(PENDING)
+  message    String?
+  approvedAt DateTime?
+  createdAt  DateTime                  @default(now())
+  updatedAt  DateTime                  @updatedAt
+
+  // Prevent duplicate open requests for the same tuple
+  openHash String @unique
+
+  @@index([approverUserId, status])
+  @@index([fromPersonId, toPersonId])
 }
 
 /**
