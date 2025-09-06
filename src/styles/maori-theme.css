@@ -1,0 +1,212 @@
+/* src/styles/maori-theme.css */
+
+/* ========== Māori-inspired design tokens (no images) ========== */
+:root {
+  /* Light mode base */
+  --background:          #faf9f6;   /* natural fibre / harakeke hue */
+  --foreground:          #0b0b0b;
+
+  /* Kōkōwai (red ochre) primaries */
+  --primary:             #7f1d1d;   /* deep kokowai */
+  --primary-foreground:  #ffffff;
+
+  /* Forest/harakeke green accent */
+  --accent:              #2f6b4f;   /* forest green */
+  --accent-foreground:   #ffffff;
+
+  /* Ocean/awa accent for rings/focus */
+  --ring:                #2c7a7b;   /* muted awa / moana blue */
+
+  /* Neutrals for surfaces */
+  --muted:               #efeae4;
+  --muted-foreground:    #3a3734;
+
+  /* Card/surface elevations */
+  --card:                #ffffff;
+  --card-foreground:     #111111;
+
+  /* Shadows */
+  --shadow:              0 1px 2px rgba(0,0,0,.08), 0 6px 16px rgba(0,0,0,.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background:         #1e1b18;   /* warm dark umber */
+    --foreground:         #f5f3ef;
+
+    --primary:            #a2342b;   /* slightly brighter kokowai for contrast */
+    --primary-foreground: #fff;
+
+    --accent:             #4b9b65;   /* lifted green for AA text contrast */
+    --accent-foreground:  #0b0b0b;   /* readable over the lighter green */
+
+    --ring:               #4ca0b3;   /* brighter awa ring for dark bg */
+
+    --muted:              #2a2521;
+    --muted-foreground:   #e7e1db;
+
+    --card:               #1f1c19;
+    --card-foreground:    #f5f3ef;
+  }
+}
+
+/* ========== Base application layer ========== */
+html, body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* Smooth focus ring that meets WCAG AA */
+:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Cards/surfaces */
+.maori-card {
+  background: var(--card);
+  color: var(--card-foreground);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  border: 1px solid color-mix(in oklab, var(--foreground) 10%, transparent);
+}
+
+/* ========== No-image, subtle cultural textures ========== */
+
+/* 1) Woven flax / tukutuku-like crosshatch (very subtle) */
+.bg-weave {
+  /* light mode: soft dark threads */
+  background-image:
+    linear-gradient(45deg, rgba(0,0,0,.035) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(0,0,0,.035) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(0,0,0,.035) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(0,0,0,.035) 75%);
+  background-size: 14px 14px;
+  background-position: 0 0, 0 7px, 7px -7px, -7px 0;
+}
+@media (prefers-color-scheme: dark) {
+  .bg-weave {
+    /* dark mode: soft light threads */
+    background-image:
+      linear-gradient(45deg, rgba(255,255,255,.045) 25%, transparent 25%),
+      linear-gradient(-45deg, rgba(255,255,255,.045) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, rgba(255,255,255,.045) 75%),
+      linear-gradient(-45deg, transparent 75%, rgba(255,255,255,.045) 75%);
+  }
+}
+
+/* 2) Kōwhaiwhai-inspired “flow” (abstract, not literal koru) */
+.bg-kowhaiwhai-lite {
+  /* Layered radial waves to hint at koru without drawing it outright */
+  background-image:
+    radial-gradient(120px 120px at 10% 20%, color-mix(in oklab, var(--primary) 6%, transparent), transparent 70%),
+    radial-gradient(180px 180px at 90% 0%,  color-mix(in oklab, var(--accent) 6%, transparent),  transparent 70%),
+    radial-gradient(160px 160px at 30% 90%, color-mix(in oklab, var(--ring)   6%, transparent),  transparent 70%);
+  background-blend-mode: multiply;
+  background-size: cover;
+  background-repeat: no-repeat;
+  /* Keep ultra subtle so it never competes with content */
+  opacity: .35;
+}
+
+/* Utility to tame any background effect if needed */
+.bg-muted-surface {
+  backdrop-filter: blur(2px);
+  background-color: color-mix(in oklab, var(--background) 85%, transparent);
+}
+
+/* ========== Buttons/links with AA+ contrast ========== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .6rem .95rem;
+  border-radius: 10px;
+  font-weight: 600;
+  line-height: 1.1;
+  border: 1px solid transparent;
+  transition: background-color .15s ease, border-color .15s ease, transform .05s ease;
+}
+
+.btn:active { transform: translateY(1px); }
+
+.btn-primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.btn-primary:hover {
+  background: color-mix(in oklab, var(--primary) 88%, black);
+}
+
+.btn-accent {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+.btn-accent:hover {
+  background: color-mix(in oklab, var(--accent) 88%, black);
+}
+
+.link {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 2px solid color-mix(in oklab, var(--accent) 35%, transparent);
+}
+.link:hover { border-bottom-color: var(--accent); }
+
+/* Inputs */
+.input, .select, .textarea {
+  background: var(--card);
+  color: var(--card-foreground);
+  border: 1px solid color-mix(in oklab, var(--foreground) 12%, transparent);
+  border-radius: 10px;
+  padding: .6rem .75rem;
+}
+.input:focus-visible, .select:focus-visible, .textarea:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Headers that evoke wharenui form subtly via spacing/border */
+.h-wharenui {
+  border-bottom: 4px solid var(--primary);
+  padding-bottom: .4rem;
+  letter-spacing: .3px;
+}
+
+/* ===== Footer theme (footer background is always dark) ===== */
+:root {
+  /* warm light text that reads well on dark */
+  --footer-foreground: #e7e1db;
+  --footer-heading:    #ffffff;
+  --footer-muted:      #cfc7c0;
+}
+
+/* Base footer text colour */
+footer { color: var(--footer-foreground); }
+
+/* Override Tailwind utility colours inside footer */
+footer .text-neutral-400,
+footer .text-neutral-300,
+footer .text-neutral-200 {
+  color: var(--footer-foreground);
+}
+
+/* Headings inside footer (brighter than body) */
+footer h1, footer h2, footer h3, footer .footer-heading {
+  color: var(--footer-heading);
+}
+
+/* Links inherit and brighten on hover */
+footer a {
+  color: var(--footer-foreground);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in oklab, currentColor 40%, transparent);
+}
+footer a:hover {
+  color: #ffffff;
+  border-bottom-color: currentColor;
+  text-decoration: none; /* keep underline style consistent */
+}
+
+/* Muted lines (e.g., © text) */
+footer .footer-muted { color: var(--footer-muted); }

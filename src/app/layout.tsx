@@ -1,4 +1,5 @@
 import "./globals.css";
+import "@/styles/maori-theme.css";
 import { ReactNode } from "react";
 import Link from "next/link";
 import { Toaster } from "sonner";
@@ -14,7 +15,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
 
   return (
     <html lang="en" className={brandFont.variable}>
-      <body>
+      <body className="bg-weave min-h-dvh">
         <Providers>
           <header className="sticky top-0 z-40 border-b bg-zinc-900/70 backdrop-blur">
             <div className="container mx-auto max-w-6xl flex items-center justify-between py-3 relative">
