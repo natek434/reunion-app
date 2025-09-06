@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PersonPicker, { PersonOption } from "@/components/ui/person-picker";
 import { toast } from "sonner";
 import { ensureCsrfToken } from "@/lib/csrf-client";
@@ -14,9 +14,19 @@ export default function LinkAccountPerson({
   mePersonLabel?: string | null; // friendly name from parent
   onLinked?: () => void;
 }) {
-  const [selected, setSelected] = useState<PersonOption | null>(
-    mePersonId ? { id: mePersonId, label: mePersonLabel || "Your person" } : null
-  );
+  const [selected, setSelected] = useState<PersonOption | null>(null);
+
+  // Keep local selection in sync with incoming props (handles late fetches)
+  useEffect(() => {
+    if (mePersonId) {
+      setSelected({
+        id: mePersonId,
+        label: (mePersonLabel || "").trim() || "Your person",
+      });
+    } else {
+      setSelected(null);
+    }
+  }, [mePersonId, mePersonLabel]);
   const [busy, setBusy] = useState(false);
 
   async function save() {
@@ -48,9 +58,14 @@ export default function LinkAccountPerson({
         <button className="btn btn-primary" onClick={save} disabled={busy}>
           {busy ? "Saving…" : "Save link"}
         </button>
-        {mePersonId && (
+        {(mePersonId || selected) && (
           <div className="text-xs text-muted-foreground">
-            Currently linked: <span className="font-medium">{mePersonLabel || selected?.label || "Unknown"}</span>
+            Currently linked:{" "}
+            <span className="font-medium">
+              {(selected?.label || "").trim() ||
+                (mePersonLabel || "").trim() ||
+                "Your person"}
+            </span>
           </div>
         )}
       </div>

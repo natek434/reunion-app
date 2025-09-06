@@ -1,37 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireUser } from "@/lib/authz";
+import { requireUser, isAdminish } from "@/lib/authz";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(_: NextRequest, { params }: { params: { id: string } }) {
-  const actor = await requireUser();
-  const r = await prisma.relationshipRequest.findUnique({ where: { id: params.id } });
+export async function POST(_: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const actor = await requireUser(); // { userId, role }
+  const { id } = await ctx.params;   // <-- await params per Next.js message
+  const r = await prisma.relationshipRequest.findUnique({ where: { id } });
   if (!r) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (r.approverUserId !== actor.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (r.approverUserId !== actor.userId && !isAdminish(actor.role)) {
+   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
   if (r.status !== "PENDING") return NextResponse.json({ error: "Already handled" }, { status: 409 });
 
   if (r.kind === "PARENT_CHILD") {
-    await prisma.parentChild.upsert({
+
+  await prisma.parentChild.upsert({
   where: {
     parentId_childId_kind: {
       parentId: r.fromPersonId,
-      childId:  r.toPersonId,
-      kind:     (r.pcKind as any) ?? "BIOLOGICAL",
+      childId: r.toPersonId,
+      kind: r.pcKind as any,
     },
   },
   create: {
-    parentId: r.fromPersonId,
-    childId:  r.toPersonId,
-    role:     (r.role as any)   ?? "PARENT",
-    kind:     (r.pcKind as any) ?? "BIOLOGICAL",
-    createdById: actor.id, // or r.createdByUserId
+    parent:    { connect: { id: r.fromPersonId } },
+    child:     { connect: { id: r.toPersonId } },
+    role:      r.role as any,
+    kind:      r.pcKind as any,
+    createdBy: { connect: { id: actor.userId } }, // ← REQUIRED by your schema
+    // (Optional: remove createdById if your schema doesn't declare it with `fields: [createdById]`)
   },
   update: {
-    role: (r.role as any) ?? "PARENT",
-    kind: (r.pcKind as any) ?? "BIOLOGICAL",
+    role: r.role as any,
+    kind: r.pcKind as any,
   },
 });
+
   } else {
     const [A, B] = r.fromPersonId < r.toPersonId ? [r.fromPersonId, r.toPersonId] : [r.toPersonId, r.fromPersonId];
     await prisma.partnership.upsert({

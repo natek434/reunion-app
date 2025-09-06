@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     }
 
     const creatorIds = new Set(people.map(p => p.createdById));
-    const youOwnAll = [...creatorIds].every(uid => uid === actor.id);
+    const youOwnAll = [...creatorIds].every(uid => uid === actor.userId);
 
     // Shortcut: if you own both sides, link immediately (no request)
     if (youOwnAll) {
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
     childId: body.childId,
     role: body.role as any,
     kind: body.kind as any,
-    createdById: actor.id,             // <- REQUIRED by your schema
+    createdById: actor.userId            // <- REQUIRED by your schema
   },
   update: {
     role: body.role as any,
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Otherwise, create pending requests for each foreign creator
-    const approverIds = [...creatorIds].filter(uid => uid !== actor.id);
+    const approverIds = [...creatorIds].filter(uid => uid !== actor.userId);
     if (approverIds.length === 0) {
       // defensive: should not happen if youOwnAll handled above
       return NextResponse.json({ error: "No approver determined" }, { status: 400 });
@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
         where: { openHash },
         create: {
           openHash,
-          createdByUserId: actor.id,      // ← THIS was missing/wrong
+          createdByUserId: actor.userId,      // ← THIS was missing/wrong
           approverUserId,
           fromPersonId: base.fromPersonId,
           toPersonId: base.toPersonId,
