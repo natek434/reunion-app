@@ -57,11 +57,12 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     .toBuffer();
 
   return new Response(out, {
-    headers: {
-      "Content-Type": `image/${format}`,
-      "Content-Length": String(out.length),
-      "Cache-Control": "public, max-age=31536000, immutable",
-      ETag: etag,
-    },
-  });
+  headers: {
+    "Content-Type": `image/${format}`,
+    "Content-Length": String(out.length),
+    "Cache-Control": "public, max-age=31536000, immutable",
+    "ETag": etag,
+    "Vary": "Accept" // <— add this
+  },
+});
 }

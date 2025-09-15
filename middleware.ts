@@ -37,6 +37,18 @@ export async function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
   const res = NextResponse.next();
 
+    const isHtmlNav =
+    req.method === "GET" &&
+    !pathname.startsWith("/api/") &&
+    !pathname.startsWith("/_next/") &&
+    (req.headers.get("accept") || "").includes("text/html");
+
+  if (isHtmlNav) {
+    const existing = readCsrfCookie(req);
+    if (!existing) setCsrfCookie(res); // <- will add Set-Cookie, but only for HTML
+  }
+
+
   // CSRF cookie on all GETs
   if (req.method === "GET") {
     const existing = readCsrfCookie(req);
@@ -64,5 +76,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|site.webmanifest|sitemap.xml|api/auth).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|site.webmanifest|sitemap.xml|api/auth|api/files).*)"],
 };
