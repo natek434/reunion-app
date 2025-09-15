@@ -56,13 +56,21 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     .toFormat(format, { quality: q })
     .toBuffer();
 
-  return new Response(out, {
-  headers: {
-    "Content-Type": `image/${format}`,
-    "Content-Length": String(out.length),
-    "Cache-Control": "public, max-age=31536000, immutable",
-    "ETag": etag,
-    "Vary": "Accept" // <— add this
-  },
-});
+ return new Response(out, {
+    headers: {
+      "Content-Type": `image/${format}`,
+      "Content-Length": String(out.length),
+      // Cache thumbnails aggressively and prevent CDN transformations
+      "Cache-Control": "public, max-age=31536000, immutable, no-transform",
+      "ETag": etag,
+      // Explicitly vary by Accept header so WebP/AVIF variants cache separately
+      "Vary": "Accept",
+    },
+  });
+}
+
+// Respond to HEAD requests with the same caching headers but no body
+export async function HEAD(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const res = await GET(req, ctx);
+  return new Response(null, { status: res.status, headers: res.headers });
 }

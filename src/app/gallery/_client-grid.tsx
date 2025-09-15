@@ -107,10 +107,9 @@ export default function GalleryGrid({
           {windowedItems.map((it) => {
             const isImg = it.mimeType.startsWith("image/");
             const isVideo = it.mimeType.startsWith("video/");
-            const thumb = isImg
-              ? `/api/files/${it.id}/thumb?w=480`
+             const thumb = isImg
+              ? `/api/files/${it.id}/thumb?w=480&q=70`
               : `/api/files/${it.id}`;
-
             return (
               <figure
                 key={it.id}
@@ -120,14 +119,13 @@ export default function GalleryGrid({
                   {isImg ? (
                     <Image
                       src={thumb}
-                      alt={it.name}
+                      alt={it.name ?? ""}
                       fill
-                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                       unoptimized
                       loading="lazy"
                       decoding="async"
-                      fetchPriority="low"
-                      className="object-cover"
+                      style={{ aspectRatio: 1, objectFit: "cover" }}
                     />
                   ) : isVideo ? (
                     <video

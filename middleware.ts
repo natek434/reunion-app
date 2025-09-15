@@ -37,7 +37,9 @@ export async function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
   const res = NextResponse.next();
 
-    const isHtmlNav =
+    // Only set the CSRF cookie for HTML navigations (i.e. real page loads).
+  // Avoid touching cookies on API or media routes so that CDN caches can work.
+  const isHtmlNav =
     req.method === "GET" &&
     !pathname.startsWith("/api/") &&
     !pathname.startsWith("/_next/") &&
@@ -45,14 +47,9 @@ export async function middleware(req: NextRequest) {
 
   if (isHtmlNav) {
     const existing = readCsrfCookie(req);
-    if (!existing) setCsrfCookie(res); // <- will add Set-Cookie, but only for HTML
-  }
-
-
-  // CSRF cookie on all GETs
-  if (req.method === "GET") {
-    const existing = readCsrfCookie(req);
-    if (!existing) setCsrfCookie(res);
+    if (!existing) {
+      setCsrfCookie(res);
+    }
   }
 
   // Debug what cookies/secret middleware sees
@@ -76,5 +73,9 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|site.webmanifest|sitemap.xml|api/auth|api/files).*)"],
+  // Exclude static assets, API routes and file serving routes from running this middleware.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|site.webmanifest|sitemap.xml|api/auth|api/files).*)",
+  ],
 };
+  
