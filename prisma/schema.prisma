@@ -402,3 +402,34 @@ model PasswordReset {
   @@index([userId])
   @@index([expiresAt])
 }
+
+enum ResourceKind {
+  pdf
+  doc
+  sheet
+  image
+  video
+  audio
+  link
+  zip
+  other
+}
+
+model Resource {
+  id          String       @id @default(cuid())
+  title       String
+  description String?      @db.Text
+  kind        ResourceKind
+  tags        String[]     @default([])
+  // Either internal file (we store a path), or an external URL
+  filePath    String? // absolute path on disk (CephFS or local)
+  externalUrl String?
+  sizeBytes   Int?
+  // who created it (optional; adapt to your User model if you want)
+  createdBy   String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([kind])
+  @@index([updatedAt])
+}

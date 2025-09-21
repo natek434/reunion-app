@@ -1,0 +1,254 @@
+*** Begin Patch
+*** Update File: middleware.ts
+@@
+-  const isHtmlNav =
+-    req.method === "GET" &&
+-    !pathname.startsWith("/api/") &&
+-    !pathname.startsWith("/_next/") &&
+-    (req.headers.get("accept") || "").includes("text/html");
+-
+-  if (isHtmlNav) {
+-    const existing = readCsrfCookie(req);
+-    if (!existing) setCsrfCookie(res); // <- will add Set-Cookie, but only for HTML
+-  }
+-
+-
+-  // CSRF cookie on all GETs
+-  if (req.method === "GET") {
+-    const existing = readCsrfCookie(req);
+-    if (!existing) setCsrfCookie(res);
+-  }
++  // Only set the CSRF cookie for HTML navigations (i.e. real page loads).
++  // Avoid touching cookies on API or media routes so that CDN caches can work.
++  const isHtmlNav =
++    req.method === "GET" &&
++    !pathname.startsWith("/api/") &&
++    !pathname.startsWith("/_next/") &&
++    (req.headers.get("accept") || "").includes("text/html");
++
++  if (isHtmlNav) {
++    const existing = readCsrfCookie(req);
++    if (!existing) {
++      setCsrfCookie(res);
++    }
++  }
+@@
+ export const config = {
+-  matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|site.webmanifest|sitemap.xml|api/auth|api/files).*)"],
++  // Exclude static assets, API routes and file serving routes from running this middleware.
++  matcher: [
++    "/((?!_next/static|_next/image|favicon.ico|robots.txt|site.webmanifest|sitemap.xml|api/auth|api/files).*)",
++  ],
+ };
+*** End Patch
+***
+*** Begin Patch
+*** Update File: src/app/api/files/[id]/thumb/route.ts
+@@
+-  return new Response(out, {
+-  headers: {
+-    "Content-Type": `image/${format}`,
+-    "Content-Length": String(out.length),
+-    "Cache-Control": "public, max-age=31536000, immutable",
+-    "ETag": etag,
+-    "Vary": "Accept" // <— add this
+-  },
+-});
++  return new Response(out, {
++    headers: {
++      "Content-Type": `image/${format}`,
++      "Content-Length": String(out.length),
++      // Cache thumbnails aggressively and prevent CDN transformations
++      "Cache-Control": "public, max-age=31536000, immutable, no-transform",
++      "ETag": etag,
++      // Explicitly vary by Accept header so WebP/AVIF variants cache separately
++      "Vary": "Accept",
++    },
++  });
++}
++
++// Respond to HEAD requests with the same caching headers but no body
++export async function HEAD(req: Request, ctx: { params: Promise<{ id: string }> }) {
++  const res = await GET(req, ctx);
++  return new Response(null, { status: res.status, headers: res.headers });
++}
+*** End Patch
+***
+*** Begin Patch
+*** Update File: src/app/api/files/[id]/video/route.ts
+@@
+-  const meta = await getLocalMeta(item.fileName);
+-  const totalSize = Number(item.size || meta.size);
+-  const mime = item.mimeType || meta.mime || "application/octet-stream";
++  // Always lookup file metadata from the filesystem.  The DB size field may be stale.
++  const meta = await getLocalMeta(item.fileName);
++  const totalSize = meta.size;
++  const mime = item.mimeType || meta.mime || "application/octet-stream";
+@@
+   const headersBase: Record<string, string> = {
+     "Accept-Ranges": "bytes",
+     "Content-Type": mime,
+     "Cache-Control": "private, no-store, no-transform",
+     "Content-Disposition": `inline; filename="${encodeURIComponent(item.name)}"`,
++    // Explicitly disable compression on proxies
++    "Content-Encoding": "identity",
+   };
+@@
+-  const range = req.headers.get("range");
+-  if (range && /^bytes=\d+-\d*$/.test(range) && totalSize > 0) {
+-    const [startStr, endStr] = range.replace("bytes=", "").split("-");
+-    const start = Math.max(0, parseInt(startStr, 10) || 0);
+-    const CHUNK = 2 * 1024 * 1024 - 1; // ~2MB default chunk
+-    const end = Math.min(endStr ? parseInt(endStr, 10) : start + CHUNK, totalSize - 1);
+-
+-    const stream = createLocalReadStream(item.fileName, { start, end });
+-    try {
+-      (req as any).signal?.addEventListener("abort", () => (stream as any).destroy?.(), { once: true });
+-    } catch {}
+-
+-    return new Response(Readable.toWeb(stream as any), {
+-      status: 206,
+-      headers: {
+-        ...headersBase,
+-        "Content-Range": `bytes ${start}-${end}/${totalSize}`,
+-        "Content-Length": String(end - start + 1),
+-      },
+-    });
+-  }
+-
+-  const stream = createLocalReadStream(item.fileName);
+-  const extra: Record<string, string> = {};
+-  if (totalSize) extra["Content-Length"] = String(totalSize);
+-
+-  try {
+-    (req as any).signal?.addEventListener("abort", () => (stream as any).destroy?.(), { once: true });
+-  } catch {}
+-
+-  return new Response(Readable.toWeb(stream as any), {
+-    status: 200,
+-    headers: { ...headersBase, ...extra },
+-  });
++  const range = req.headers.get("range");
++  if (range && /^bytes=\d+-\d*$/.test(range) && totalSize > 0) {
++    const [startStr, endStr] = range.replace("bytes=", "").split("-");
++    const start = Math.max(0, parseInt(startStr, 10) || 0);
++    const endReq = endStr ? parseInt(endStr, 10) : undefined;
++    const CHUNK = 2 * 1024 * 1024 - 1; // ~2MB default chunk
++    const end = endReq !== undefined ? Math.min(endReq, totalSize - 1) : Math.min(start + CHUNK, totalSize - 1);
++    // Reject unsatisfiable range
++    if (start >= totalSize) {
++      return new Response(null, {
++        status: 416,
++        headers: {
++          ...headersBase,
++          "Content-Range": `bytes */${totalSize}`,
++        },
++      });
++    }
++    const stream = createLocalReadStream(item.fileName, { start, end });
++    try {
++      (req as any).signal?.addEventListener("abort", () => (stream as any).destroy?.(), { once: true });
++    } catch {}
++    return new Response(Readable.toWeb(stream as any), {
++      status: 206,
++      headers: {
++        ...headersBase,
++        "Content-Range": `bytes ${start}-${end}/${totalSize}`,
++        "Content-Length": String(end - start + 1),
++      },
++    });
++  }
++
++  // HEAD requests should return headers only
++  if (req.method === "HEAD") {
++    return new Response(null, {
++      status: 200,
++      headers: { ...headersBase, "Content-Length": String(totalSize) },
++    });
++  }
++
++  // Full content request
++  const stream = createLocalReadStream(item.fileName);
++  try {
++    (req as any).signal?.addEventListener("abort", () => (stream as any).destroy?.(), { once: true });
++  } catch {}
++  return new Response(Readable.toWeb(stream as any), {
++    status: 200,
++    headers: { ...headersBase, "Content-Length": String(totalSize) },
++  });
+*** End Patch
+***
+*** Begin Patch
+*** Update File: src/app/api/files/[id]/route.ts
+@@
+ export async function GET(_req: Request, context: { params: Promise<{ id: string }> }) {
+@@
+-  // Fetch the gallery item by its ID
+-  const { id } = await context.params;
+-  const item = await prisma.galleryItem.findUnique({
+-    where: { id },
+-    select: { fileName: true, mimeType: true, name: true },
+-  });
+-  if (!item) {
+-    return new Response("Not found", { status: 404 });
+-  }
+-
+-  try {
+-    // Load the file data from local storage
+-    const { getLocalFileStream } = await import("@/lib/localstorage");
+-    const data = await getLocalFileStream(item.fileName);
+-
+-    return new Response(data, {
+-      headers: {
+-        "Content-Type": item.mimeType,
+-        "Content-Disposition": `inline; filename="${encodeURIComponent(item.name)}"`,
+-        // Cache privately on the client; adjust if you want public caching
+-        "Cache-Control": "private, max-age=0, no-store",
+-      },
+-    });
+-  } catch (e) {
+-    console.error("Local file read error", e);
+-    return new Response("Error retrieving file", { status: 500 });
+-  }
++  // Fetch the gallery item by its ID to ensure it exists
++  const { id } = await context.params;
++  const item = await prisma.galleryItem.findUnique({
++    where: { id },
++    select: { id: true },
++  });
++  if (!item) {
++    return new Response("Not found", { status: 404 });
++  }
++
++  // Redirect to dedicated video endpoint.  This avoids buffering large files here.
++  const redirectUrl = `/api/files/${id}/video`;
++  return new Response(null, {
++    status: 302,
++    headers: { Location: redirectUrl },
++  });
+*** End Patch
+***
+*** Begin Patch
+*** Update File: src/app/gallery/_client-grid.tsx
+@@
+-            const thumb = isImg
+-              ? `/api/files/${it.id}/thumb?w=480`
+-              : `/api/files/${it.id}`;
++            // Request a sized thumbnail with quality for images, otherwise use the file endpoint
++            const thumb = isImg
++              ? `/api/files/${it.id}/thumb?w=480&q=70`
++              : `/api/files/${it.id}`;
+@@
+-                  <Image
+-                  src={thumb}
+-                  alt={it.name ?? ""}
+-                  />
++                  <Image
++                    src={thumb}
++                    alt={it.name ?? ""}
++                    loading="lazy"
++                    decoding="async"
++                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
++                    style={{ aspectRatio: 1, objectFit: "cover" }}
++                  />
+*** End Patch
