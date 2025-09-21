@@ -30,6 +30,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 <NavWhakapapaLink />
                 <Link className="nav-link" href="/gallery">Gallery</Link>
                 <Link className="nav-link" href="/dashboard">Upload</Link>
+                <Link className="nav-link" href="/resources">Resources</Link>
                 <HeaderAuth />
               </nav>
               </div>
