@@ -157,7 +157,7 @@ export default function Dashboard() {
       <div className="card p-6">
         <h1 className="text-2xl font-semibold mb-2">Upload to family gallery</h1>
         <p className="text-sm mb-4">
-          Select multiple images/videos. We’ll upload up to {CONCURRENCY} at a time.
+          Select multiple images/videos.
         </p>
 
         <input

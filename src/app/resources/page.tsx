@@ -64,7 +64,7 @@ export default async function ResourcesPage() {
       <header className="mb-8 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Resources</h1>
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm">
             Learning materials, guides, and downloads for the whānau.
           </p>
         </div>

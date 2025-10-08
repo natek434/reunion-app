@@ -1,20 +1,22 @@
-import "./globals.css";
-import "@/styles/maori-theme.css";
+import './globals.css';
+import '@/styles/maori-theme.css';
 import { ReactNode } from "react";
 import Link from "next/link";
 import { Toaster } from "sonner";
 import Providers from "./providers";
 import HeaderAuth from "@/components/header-auth";
 import { brandFont } from "./fonts";
-import NavWhakapapaLink from "@/components/nav-whakapapa-link";
-
 import MobileNav from "@/components/mobile-nav";
 import Footer from "@/components/ui/footer";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
 
   return (
-    <html lang="en" className={brandFont.variable}>
+    <html lang="en" className={`${brandFont.variable} dark`}>
       <body className="bg-weave min-h-dvh">
         <Providers>
           <header className="sticky top-0 z-40 border-b bg-zinc-900/70 backdrop-blur">
@@ -25,12 +27,14 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               </Link>
 
               <nav className="header-nav flex items-center gap-1 md:gap-2">
-                <Link className="nav-link" href="/">Home</Link>
-                <Link className="nav-link" href="/event">Event</Link>
-                <NavWhakapapaLink />
-                <Link className="nav-link" href="/gallery">Gallery</Link>
-                <Link className="nav-link" href="/dashboard">Upload</Link>
-                <Link className="nav-link" href="/resources">Resources</Link>
+                {/** Consolidated: single source of nav items */}
+                  {(
+                  (await import("@/config/nav").catch(() => ({ NAV_ITEMS: [] as {href:string;label:string}[] }))).NAV_ITEMS
+                ).map((item) => (
+                  <Link key={item.href} className="nav-link" href={item.href}>
+                    {item.label}
+                  </Link>
+                ))}
                 <HeaderAuth />
               </nav>
               </div>

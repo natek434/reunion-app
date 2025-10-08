@@ -5,6 +5,7 @@ import { signIn } from "next-auth/react";
 import { toast } from "sonner";
 import { ensureCsrfToken } from "@/lib/csrf-client";
 
+
 export default function SignUp() {
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const onChange = (k: keyof typeof form) =>

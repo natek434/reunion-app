@@ -86,10 +86,10 @@ export default function ResourceCard({ res }: { res: Resource }) {
   })();
 
   return (
-    <article className="rounded-xl border bg-white/50 backdrop-blur shadow-sm overflow-hidden">
+    <article className="resource-card">
       <div className="p-4 flex items-start gap-3">
-        <div className="p-2 rounded-lg bg-zinc-100">
-          <Icon size={20} className="text-zinc-700" />
+        <div className="p-2 icon-pill">
+          <Icon size={20} />
         </div>
 
         <div className="flex-1 min-w-0">
@@ -98,7 +98,7 @@ export default function ResourceCard({ res }: { res: Resource }) {
           </h3>
 
           {res.description && (
-            <p className="text-sm text-zinc-600 line-clamp-2 mt-0.5">
+            <p className="text-sm resource-desc line-clamp-2 mt-0.5">
               {res.description}
             </p>
           )}
@@ -107,12 +107,12 @@ export default function ResourceCard({ res }: { res: Resource }) {
             {res.tags?.map((t) => (
               <span
                 key={t}
-                className="text-[11px] px-2 py-0.5 rounded-full border text-zinc-600 bg-white"
+                className="chip"
               >
                 {t}
               </span>
             ))}
-            <span className="text-[11px] text-zinc-500">
+            <span className="text-[11px]">
               {fmtSize((res as any).sizeBytes)}
               {updatedLabel ? ` · Updated ${updatedLabel}` : ""}
             </span>
@@ -124,7 +124,7 @@ export default function ResourceCard({ res }: { res: Resource }) {
               href={viewHref}
               target={isExternalOnly ? "_blank" : undefined}
               rel={isExternalOnly ? "noopener noreferrer" : undefined}
-              className="inline-flex items-center gap-1 rounded-md bg-black text-white px-3 py-1.5 text-sm hover:bg-black/90"
+              className="action"
               aria-label={`View ${res.title}`}
             >
               <ExternalLink size={14} />
@@ -134,11 +134,9 @@ export default function ResourceCard({ res }: { res: Resource }) {
             {/* DOWNLOAD */}
             <a
               href={downloadHref}
-              // Only hint download for our own hosted files. External sites may block it.
-              download={fileId || filePath ? "" : undefined}
               target={isExternalOnly ? "_blank" : undefined}
               rel={isExternalOnly ? "noopener noreferrer" : undefined}
-              className="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm hover:bg-zinc-100"
+              className="action action--bordered"
               aria-label={`Download ${res.title}`}
             >
               <Download size={14} />

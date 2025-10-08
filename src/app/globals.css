@@ -1,270 +1,216 @@
+/* If you're on Tailwind v4 and still want preflight, keep this import.
+   It does NOT use @apply. If you don't want Tailwind preflight at all,
+   you can delete this line. */
 @import "tailwindcss";
 
-/* ========== THEME (Warm/Earthy + Amber) ========== */
+/* ================== Design tokens ================== */
 :root {
-  --background: #FAF7F2;          /* linen */
-  --foreground: #1f2937;          /* slate-800 */
-  --card: #ffffff;
-  --card-foreground: #1f2937;
+  --background: #faf9f6;
+  --foreground: #0b0b0b;
 
-  --muted: #6b7280;               /* gray-500 */
-  --muted-foreground: #6b7280;
-
-  --border: #e7e5e4;              /* stone-200 (warmer than gray-200) */
-  --ring: #b45309;                /* amber-700 */
-
-  --primary: #5c3d32;             /* rich brown */
+  --primary: #7f1d1d;
   --primary-foreground: #ffffff;
 
-  --accent: #f59e0b;              /* amber-500 */
-  --accent-foreground: #1f2937;   /* dark text on amber */
+  --accent: #2f6b4f;
+  --accent-foreground: #ffffff;
 
-  --header-link: rgba(255, 255, 255, 0.75);
-  --header-link-hover: #fff;
+  --ring: #2c7a7b;
+
+  --muted: #efeae4;
+  --muted-foreground: #3a3734;
+
+  --card: #ffffff;
+  --card-foreground: #111111;
+
+  --border: color-mix(in oklab, var(--foreground) 12%, transparent);
+
+  --shadow: 0 1px 2px rgba(0,0,0,.08), 0 6px 16px rgba(0,0,0,.06);
+
+  /* Watermark controls */
+  --wm-size: 90vw;
+  --wm-y: 2vh;
+  --wm-opacity: 0.08;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #12100e;        /* very dark warm */
-    --foreground: #e5e7eb;        /* gray-200 */
+    --background: #1e1b18;
+    --foreground: #f5f3ef;
 
-    --card: #1c1917;              /* stone-900 */
-    --card-foreground: #e5e7eb;
-
-    --muted: #a8a29e;             /* stone-400 */
-    --muted-foreground: #a8a29e;
-
-    --border: #292524;            /* stone-800 */
-    --ring: #f59e0b;              /* amber-500 */
-
-    --primary: #7b5243;           /* lighter brown for dark bg */
+    --primary: #a2342b;
     --primary-foreground: #ffffff;
 
-    --accent: #f59e0b;            /* amber-500 */
+    --accent: #4b9b65;
     --accent-foreground: #0b0b0b;
+
+    --ring: #4ca0b3;
+
+    --muted: #2a2521;
+    --muted-foreground: #e7e1db;
+
+    --card: #1f1c19;
+    --card-foreground: #f5f3ef;
+
+    --wm-opacity: 0.04;
   }
 }
 
-/* ===== THEME: Minimal Slate + Royal Blue ===== */
-:root {
-  --background: #f8fafc;          /* slate-50 */
-  --foreground: #0f172a;          /* slate-900 */
-  --card: #ffffff;
-  --card-foreground: #0f172a;
-
-  --muted: #64748b;               /* slate-500/600 */
-  --muted-foreground: #64748b;
-
-  --border: #e2e8f0;              /* slate-200 */
-  --ring: #3b82f6;                /* blue-500 */
-
-  --primary: #b2bdde;             /* blue-700 */
-  --primary-foreground: #ffffff;
-
-  --accent: #8b5cf6;              /* violet-500 */
-  --accent-foreground: #ffffff;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0b1220;        /* deep indigo/blue-black */
-    --foreground: #e5e7eb;        /* gray-200 */
-
-    --card: #0f172a;              /* slate-900 */
-    --card-foreground: #e5e7eb;
-
-    --muted: #94a3b8;             /* slate-400 */
-    --muted-foreground: #94a3b8;
-
-    --border: #1f2937;            /* slate-800 */
-    --ring: #60a5fa;              /* blue-400 */
-
-    --primary: #3b82f6;           /* blue-500 (brighter for dark) */
-    --primary-foreground: #0b1220;
-
-    --accent: #a78bfa;            /* violet-400 */
-    --accent-foreground: #0b1220;
-  }
-}
-
-/* optional: slightly stronger hover on primary buttons */
-.btn-primary:hover { filter: brightness(0.93); }
-
-/* ========== BASE ========== */
+/* ================== Base ================== */
 :root { color-scheme: light dark; }
-
-/* Watermark vars (SVG) */
-:root {
-  --wm-size: 90vw;
-  --wm-y: 2vh;               /* vertical position */
-  --wm-opacity: 0.08;         /* light strength */
-}
-@media (prefers-color-scheme: dark) {
-  :root { --wm-opacity: 0.04; } /* a touch brighter on dark */
-}
-
 html, body { min-height: 100%; }
-
-body {
+html, body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-  position: relative; /* allow ::before overlay */
+}
+:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
 }
 
-/* Selection & focus polish */
-::selection { background: color-mix(in oklab, var(--primary) 25%, transparent); color: var(--foreground); }
+/* Selection */
+::selection {
+  background: color-mix(in oklab, var(--primary) 25%, transparent);
+  color: var(--foreground);
+}
 
-/* === Page watermark using SVG mask === */
+/* Watermark */
+body {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial,
+               "Apple Color Emoji", "Segoe UI Emoji";
+  position: relative;
+}
 body::before {
   content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 0;
-
-  /* tint from theme foreground, only shape shows via mask */
   background: var(--foreground);
   -webkit-mask: url("/whanau-mark.svg") center var(--wm-y) / var(--wm-size) auto no-repeat;
           mask: url("/whanau-mark.svg") center var(--wm-y) / var(--wm-size) auto no-repeat;
-
   opacity: var(--wm-opacity);
 }
-
-/* keep content above watermark */
 header, main, footer { position: relative; z-index: 1; }
 
-/* ========== UI HELPERS (Tailwind + CSS vars) ========== */
+/* ================== UI Primitives (pure CSS) ================== */
+
+/* Cards/surfaces */
+.maori-card,
 .card {
   background-color: var(--card);
   color: var(--card-foreground);
-  border-color: var(--border);
-  border-width: 1px;
-  border-style: solid;
+  border: 1px solid var(--border);
   border-radius: 1rem; /* rounded-2xl */
-  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1); /* shadow-md */
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
 }
 
+/* Buttons */
 .btn {
-  border-color: var(--border);
-  color: var(--foreground);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 0.75rem;         /* rounded-xl */
+  padding: 0.5rem 0.75rem;        /* py-2 px-3 */
+  font-weight: 600;
+  line-height: 1.1;
   background-color: transparent;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 0.75rem; /* rounded-xl */
-    padding-left: 1rem;     /* px-4 */
-    padding-right: 1rem;    /* px-4 */
-    padding-top: 0.5rem;    /* py-2 */
-    padding-bottom: 0.5rem; /* py-2 */
-    font-weight: 500;       /* font-medium */
-    transition: background-color 0.2s, opacity 0.2s;
-  }
-  .btn:hover {
-    background-color: rgba(245, 245, 245, 0.7); /* neutral-100/70 */
-    color: var(--foreground);
+  color: var(--foreground);
+  transition: background-color .2s, opacity .2s, color .2s, border-color .2s;
+}
+.btn:hover {
+  background-color: rgba(245,245,245,0.7);
+}
+.btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ring);
 }
 
+/* Button variants */
 .btn-primary {
   background-color: var(--primary);
   color: var(--primary-foreground);
   border-color: var(--primary);
-  border-width: 1px;
-  border-style: solid;
-  transition: opacity 0.2s;
 }
+.btn-primary:hover { filter: brightness(0.93); }
 
 .btn-accent {
   background-color: var(--accent);
   color: var(--accent-foreground);
   border-color: var(--accent);
-  border-width: 1px;
-  border-style: solid;
-  transition: opacity 0.2s;
 }
-.btn-accent:hover {
-  opacity: 0.9;
-}
-
-.input {
-  background-color: var(--card);
-  color: var(--foreground);
-  border-color: var(--border);
-  width: 100%;
-  border-radius: 0.75rem; /* rounded-xl */
-  border-width: 1px;
-  border-style: solid;
-  padding-left: 0.75rem;  /* px-3 */
-  padding-right: 0.75rem; /* px-3 */
-  padding-top: 0.5rem;    /* py-2 */
-  padding-bottom: 0.5rem; /* py-2 */
-  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
-  outline: none;
-}
-.input:focus {
-  /* Tailwind rings don’t accept CSS variables via @apply, so use raw CSS */
-  box-shadow: 0 0 0 2px var(--ring);
-}
+.btn-accent:hover { opacity: 0.9; }
 
 /* Links */
 a { color: var(--primary); }
 a:hover { opacity: 0.9; }
+.link {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 2px solid color-mix(in oklab, var(--accent) 35%, transparent);
+}
+.link:hover { border-bottom-color: var(--accent); }
 
-/* Optional elevated surfaces */
-.elev-1 { box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 1px 4px rgba(0,0,0,.04); }
+/* Inputs */
+.input, .select, .textarea {
+  background-color: var(--card);
+  color: var(--card-foreground);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem; /* rounded-xl */
+  padding: 0.5rem 0.75rem; /* py-2 px-3 */
+  width: 100%;
+  transition: background-color .2s, color .2s, border-color .2s;
+  outline: none;
+}
+.input:focus, .select:focus, .textarea:focus {
+  box-shadow: 0 0 0 2px var(--ring);
+}
 
-/* put in globals.css */
+/* Motion-reduction */
+@media (prefers-reduced-motion: reduce) {
+  .btn, .btn-primary, .btn-accent { transition: none; }
+}
+
+/* ================== Header styles ================== */
+.header-nav { position: relative; z-index: 12000; }
 .header-nav .btn {
   color: #fff;
   border-color: rgba(255,255,255,.18);
 }
 .header-nav .btn:hover { background-color: rgba(255,255,255,.08); }
 
-/* src/app/globals.css (replace your current .brand-title rules) */
 .brand-title {
-  /* switch to a clean sans family */
   font-family: "Work Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
                Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji",
                "Segoe UI Emoji";
   font-weight: 600;
   font-size: clamp(1.3rem, 2.2vw, 2.1rem);
   letter-spacing: 0.01em;
-
-  color: #fff;                       /* strong on dark headers */
-  text-shadow: 0 1px 1px rgba(0, 0, 0, .35);
-
+  color: #fff;
+  text-shadow: 0 1px 1px rgba(0,0,0,.35);
   padding: .3rem .45rem;
   border-radius: .6rem;
-
-  background: transparent;           /* no ribbon */
-  border: none;                      /* no underline/border */
-
+  background: transparent;
+  border: none;
   transition: color .15s ease, text-shadow .15s ease, transform .05s ease;
 }
-
-.brand-title:hover {
-  /* slightly crisper hover without changing the color */
-  text-shadow: 0 2px 8px rgba(0, 0, 0, .25);
-}
-
+.brand-title:hover { text-shadow: 0 2px 8px rgba(0,0,0,.25); }
 .brand-title:focus-visible {
   outline: 3px solid var(--ring, #2c7a7b);
   outline-offset: 3px;
 }
 
-
-/* Smaller, elegant nav links with animated underline */
+/* Nav links */
 .header-nav .nav-link {
-  font-size: 0.85rem;                  /* smaller link text */
-  color: var(--header-link);
+  font-size: 0.85rem;
+  color: whitesmoke;
   padding: 0.375rem 0.5rem;
   border-radius: 0.6rem;
   position: relative;
-  transition: color .15s ease, background-color .15s ease;
+  transition: color .30s ease, background-color .30s ease;
 }
-.header-nav .nav-link:hover { color: var(--header-link-hover); }
-
-/* accent underline that animates in */
+.header-nav .nav-link:hover { color: var(--foreground); }
 .header-nav .nav-link::after {
   content: "";
   position: absolute;
@@ -277,107 +223,37 @@ a:hover { opacity: 0.9; }
   opacity: .3;
 }
 .header-nav .nav-link:hover::after { transform: scaleX(1); }
-
-/* Make any header buttons (e.g., Sign in) match size */
 .header-nav .btn { font-size: 0.85rem; }
 
-/* React Flow: allow hover cards to escape node bounds & stack above */
-.react-flow,
-.react-flow__renderer,
-.react-flow__nodes,
-.react-flow__node { overflow: visible; }
-
-.react-flow__node:hover { z-index: 1000; }
-
-/* Utility for our hover cards */
-.rf-hover-card {
-  pointer-events: none;   /* let mouse pass through */
-  z-index: 9999;          /* above nodes/edges */
-}
-
-/* Remove default marker on <summary> */
-.header-nav summary::-webkit-details-marker { display: none; }
-
-/* Ensure dropdown stays within header z-layer */
-.header-nav details { position: relative; }
-
-/* Reuse your header look for the trigger via .nav-link on <summary> */
-.header-nav summary.nav-link {
-  display: inline-flex;
-  align-items: center;
-  gap: .35rem;
-}
-/* globals.css, near your header styles */
-.header-nav { position: relative; z-index: 12000; }
-
-.dropdown-item {
-  display: block;
-  padding: 0.6rem 0.75rem;
-  font-size: 0.9rem;
-  color: rgba(255,255,255,.92);
-  transition: background-color .15s ease, color .15s ease;
-}
-.dropdown-item:hover {
-  background: rgba(255,255,255,.08);
-  color: #fff;
-}
-
-/* === Responsive improvements ===
- *
- * On tablet-sized screens and smaller, the header navigation needs to wrap
- * gracefully and provide sufficient padding. On very small screens (mobile),
- * the nav items stack vertically and span the full width so that
- * links and buttons are easy to tap. Horizontal padding keeps content
- * away from the screen edges.
- */
-
+/* Responsive tweaks */
 @media (max-width: 768px) {
   .header-nav .nav-link { font-size: 0.95rem; }
 }
-
-/* Make the container breathe a bit on phones */
 @media (max-width: 640px) {
   .container { padding-inline: 1rem; }
 }
 
-/* --- Genealogy Tree styling -------------------------------------------- */
-
-/* Gender palette (tuned for light/dark) */
-:root {
-  --gender-male:    #3b82f6; /* blue-500 */
-  --gender-female:  #ec4899; /* pink-500 */
-  --gender-other:   #a78bfa; /* violet-400/500 */
-  --gender-unknown: #94a3b8; /* slate-400 */
-
-  --edge-biological: #94a3b8; /* slate-400 */
-  --edge-whangai:    #f59e0b; /* amber-500 */
-  --edge-highlight:  #3b82f6; /* blue-500 */
+/* ================== Genealogy/Tree bits ================== */
+:root{
+  --gender-male:#3b82f6; --gender-female:#ec4899; --gender-other:#a78bfa; --gender-unknown:#94a3b8;
+  --edge-biological:#94a3b8; --edge-whangai:#f59e0b; --edge-highlight:#3b82f6;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --gender-male:    #60a5fa; /* blue-400 */
-    --gender-female:  #f472b6; /* pink-400 */
-    --gender-other:   #c4b5fd; /* violet-300 */
-    --gender-unknown: #a1a1aa; /* zinc-400 */
-
-    --edge-biological: #a1a1aa; /* zinc-400 */
-    --edge-whangai:    #f59e0b; /* amber-500 */
-    --edge-highlight:  #60a5fa; /* blue-400 */
+@media (prefers-color-scheme: dark){
+  :root{
+    --gender-male:#60a5fa; --gender-female:#f472b6; --gender-other:#c4b5fd; --gender-unknown:#a1a1aa;
+    --edge-biological:#a1a1aa; --edge-whangai:#f59e0b; --edge-highlight:#60a5fa;
   }
 }
-
-/* Person cards: thin colored rail + avatar ring driven by --accent */
 .person-card {
   position: relative;
   background: var(--card);
-  border-color: var(--border);
+  border: 1px solid var(--border);
 }
 .person-card::before {
   content: "";
   position: absolute;
   inset: 0 auto 0 0;
-  width: 4px;
-  border-radius: 12px 0 0 12px;
+  width: 4px; border-radius: 12px 0 0 12px;
   background: var(--accent, var(--gender-unknown));
 }
 .person-card[data-gender="MALE"]    { --accent: var(--gender-male); }
@@ -389,43 +265,220 @@ a:hover { opacity: 0.9; }
   box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent, var(--gender-unknown)) 55%, transparent);
   border-color: color-mix(in oklab, var(--accent, var(--gender-unknown)) 35%, var(--border));
 }
-
-/* A tiny lock badge if needed */
 .person-lock {
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 9999px;
+  font-size: 10px; padding: 2px 6px; border-radius: 9999px;
   background: color-mix(in oklab, var(--accent, var(--gender-unknown)) 16%, transparent);
   color: color-mix(in oklab, var(--accent, var(--gender-unknown)) 90%, #222);
 }
+.legend-dot { width:10px; height:10px; border-radius:9999px; display:inline-block; }
 
-/* (Optional) legend dots */
-.legend-dot {
-  width: 10px; height: 10px; border-radius: 9999px; display: inline-block;
-}
-
-/* Segmented controls (auto-theme via CSS vars) */
+/* Segmented controls */
 .segmented {
-  border-color: var(--border);
+  border: 1px solid var(--border);
   background: color-mix(in oklab, var(--foreground) 4%, transparent);
 }
 .segmented .seg-btn {
-  font-size: 0.75rem;           /* text-xs */
-  padding: 0.375rem 0.75rem;    /* px-3 py-1.5 */
-  background: transparent;
-  color: var(--muted-foreground);
+  font-size: 0.75rem; padding: 0.375rem 0.75rem;
+  background: transparent; color: var(--muted-foreground);
   transition: background-color .15s ease, color .15s ease, opacity .15s ease;
 }
 .segmented .seg-btn:hover {
   background: color-mix(in oklab, var(--foreground) 8%, transparent);
 }
 .segmented .seg-btn.is-active {
-  background: var(--foreground);
-  color: var(--background);
+  background: var(--foreground); color: var(--background);
 }
 
-/* Optional: edge-category text tints for inactive “Show” buttons */
-.edge-text--bio     { color: var(--edge-biological); }
-.edge-text--whangai { color: var(--edge-whangai); }
-.edge-text--all     { color: var(--muted-foreground); }
+/* React Flow helpers */
+.react-flow, .react-flow__renderer, .react-flow__nodes, .react-flow__node { overflow: visible; }
+.react-flow__node:hover { z-index: 1000; }
+.rf-hover-card { pointer-events: none; z-index: 9999; }
 
+/* Details/summary tweaks */
+.header-nav summary::-webkit-details-marker { display: none; }
+.header-nav details { position: relative; }
+.header-nav summary.nav-link { display: inline-flex; align-items: center; gap: .35rem; }
+
+/* Footer helpers */
+.elev-1 { box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 1px 4px rgba(0,0,0,.04); }
+
+/* ---- Reusable profile/menu primitives ---- */
+.menu-panel {
+  width: min(100%, 24rem);
+  border-radius: 1rem;           /* rounded-2xl */
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,.1);
+  background: #fff;
+  color: #0b0b0b;
+  box-shadow: 0 25px 50px -12px rgba(0,0,0,.25);
+}
+@media (prefers-color-scheme: dark) {
+  .menu-panel {
+    background: #18181b;         /* zinc-900 */
+    color: #fff;
+    border-color: rgba(255,255,255,.15);
+  }
+}
+
+.menu-divider {
+  height: 1px;
+  background: rgba(0,0,0,.10);
+}
+@media (prefers-color-scheme: dark) {
+  .menu-divider { background: rgba(255,255,255,.12); }
+}
+
+.menu-item {
+  display: block;
+  padding: 0.625rem 1.25rem;     /* py-2.5 px-5 */
+  font-size: 0.875rem;           /* text-sm */
+  color: #0b0b0b;
+  text-decoration: none;
+  transition: background-color .15s ease;
+}
+.menu-item:hover { background: rgb(244 244 245 / 1); } /* zinc-100 */
+
+@media (prefers-color-scheme: dark) {
+  .menu-item {
+    color: #fff;
+  }
+  .menu-item:hover { background: rgba(255,255,255,.12); } /* was .10 */
+}
+
+.menu-label {
+  padding: 0.75rem 1.25rem 0.25rem;
+  font-size: 0.75rem;            /* text-xs */
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: rgba(24,24,27,.6);      /* zinc-900/60 */
+}
+@media (prefers-color-scheme: dark) {
+  .menu-label { color: rgba(255,255,255,.70); } /* a tad stronger */
+}
+
+.menu-btn {
+  padding: 0.375rem 0.75rem;     /* py-1.5 px-3 */
+  border-radius: 0.375rem;       /* rounded-md */
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background-color .15s ease, color .15s ease;
+  border: 0;
+}
+.menu-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.menu-btn--ghost {
+  background: rgb(244 244 245 / 1);
+  color: #0b0b0b;
+}
+.menu-btn--ghost:hover { background: rgb(228 228 231 / 1); } /* zinc-200 */
+@media (prefers-color-scheme: dark) {
+  .menu-btn--ghost {
+    background: rgba(255,255,255,.10);
+    color: #fff;
+  }
+  .menu-btn--ghost:hover { background: rgba(255,255,255,.15); }
+}
+
+.menu-btn--danger {
+  color: #be123c;                 /* rose-700 */
+  background: transparent;
+}
+.menu-btn--danger:hover {
+  background: rgba(244,63,94,.08); /* rose-500/8 */
+}
+@media (prefers-color-scheme: dark) {
+  .menu-btn--danger { color: #fb7185; } /* rose-400 for contrast */
+  .menu-btn--danger:hover { background: rgba(255,255,255,.10); }
+}
+
+/* ---- Resource card primitives (token-based) ---- */
+.resource-card {
+  background: var(--card);
+  color: var(--card-foreground);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;            /* rounded-xl */
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.icon-pill {
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
+  color: color-mix(in oklab, var(--foreground) 78%, transparent);
+  border-radius: 0.5rem;             /* rounded-lg */
+}
+
+.resource-desc {
+  color: var(--muted-foreground);
+}
+
+.chip {
+  font-size: 11px;
+  padding: 0.125rem 0.5rem;          /* py-0.5 px-2 */
+  border-radius: 9999px;
+  background: color-mix(in oklab, var(--foreground) 4%, transparent);
+  color: var(--muted-foreground);
+  border: 1px solid var(--border);
+}
+
+.meta {
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+
+/* Actions (links/buttons) */
+.action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 0.375rem;           /* rounded-md */
+  padding: 0.375rem 0.75rem;         /* py-1.5 px-3 */
+  font-size: 0.875rem;               /* text-sm */
+  color: var(--card-foreground);
+  background: transparent;
+  border: 1px solid transparent;
+  transition: background-color .15s ease;
+}
+.action:hover {
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
+}
+.action--bordered {
+  border-color: var(--border);
+}
+.action:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+/* --- Mobile nav links (fixed for dark sheet) --- */
+.mobile-nav-link {
+  display: block;
+  padding: 0.5rem 0.75rem;         /* py-2 px-3 */
+  border-radius: 0.75rem;          /* rounded-xl */
+  font-size: 0.875rem;             /* text-sm */
+  text-decoration: none;
+  color: rgba(255, 255, 255, 0.82); /* fixed light text */
+  background: transparent;
+  transition: background-color .30s ease, color .30s ease;
+}
+
+.mobile-nav-link:hover {
+  background: rgba(255, 255, 255, 0.10);
+  color: #fff;
+}
+
+/* Active route indicator (either via aria-current or class) */
+.mobile-nav-link[aria-current="page"],
+.mobile-nav-link.is-active {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+/* Keyboard focus */
+.mobile-nav-link:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
+}

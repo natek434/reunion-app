@@ -7,7 +7,6 @@ import { redirect } from "next/navigation";
 
 export const dynamic = 'force-dynamic';
 
-
 function encodeCursor(d: Date, id: string) {
   return Buffer.from(`${d.toISOString()}::${id}`).toString("base64");
 }

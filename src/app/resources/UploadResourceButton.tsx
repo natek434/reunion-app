@@ -1,17 +1,30 @@
+// src/app/resources/upload-resource-button.tsx
 "use client";
 
-import { useState, useRef, useTransition } from "react";
+import { useState, useRef, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Upload, Link as LinkIcon, X } from "lucide-react";
 
 export default function UploadResourceButton() {
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<"file" | "link">("file");
+  const [kind, setKind] = useState<
+    "pdf" | "doc" | "sheet" | "image" | "video" | "audio" | "link" | "zip" | "other"
+  >("pdf");
+  const isLink = kind === "link";
+
   const formRef = useRef<HTMLFormElement | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+
+  // (Optional) lock scroll while modal open
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [open]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,7 +33,7 @@ export default function UploadResourceButton() {
     try {
       const form = formRef.current!;
       const fd = new FormData(form);
-      const endpoint = mode === "file" ? "/api/resources/upload" : "/api/resources";
+      const endpoint = isLink ? "/api/resources" : "/api/resources/upload";
       const res = await fetch(endpoint, { method: "POST", body: fd });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
@@ -28,8 +41,7 @@ export default function UploadResourceButton() {
       }
       setOpen(false);
       form.reset();
-
-      // Revalidate server components without passing a callback down
+      setKind("pdf");
       startTransition(() => router.refresh());
     } catch (e: any) {
       setErr(e.message || "Something went wrong");
@@ -38,58 +50,72 @@ export default function UploadResourceButton() {
     }
   };
 
+  // Narrow file types by kind (optional nicety)
+  const acceptForKind =
+    kind === "image" ? "image/*" :
+    kind === "video" ? "video/*" :
+    kind === "audio" ? "audio/*" :
+    kind === "pdf"   ? "application/pdf" :
+    kind === "doc"   ? ".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" :
+    kind === "sheet" ? ".xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" :
+    kind === "zip"   ? ".zip,application/zip,application/x-zip-compressed" :
+    undefined;
+
   return (
     <>
+      {/* Trigger */}
       <button
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-2 rounded-md bg-black text-white px-3 py-2 text-sm hover:bg-black/90"
+        className="inline-flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-3 py-2 text-sm hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       >
         <Plus size={16} /> Upload
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm grid place-items-center p-4">
-          <div className="w-full max-w-lg rounded-xl bg-white shadow-lg">
-            <div className="flex items-center justify-between p-4 border-b">
+        <div className="fixed inset-0 z-[12000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-xl bg-card text-card-foreground border border-border shadow-lg max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-4rem)] overflow-auto overscroll-contain">
+            <div className="flex items-center justify-between p-4 border-b border-border">
               <h2 className="text-lg font-semibold">Add Resource</h2>
-              <button onClick={() => setOpen(false)} className="p-1 rounded hover:bg-zinc-100">
+              <button
+                onClick={() => setOpen(false)}
+                className="p-1 rounded-md hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                aria-label="Close"
+              >
                 <X size={18} />
               </button>
             </div>
 
-            <div className="px-4 pt-3">
-              <div className="mb-3 flex gap-2">
-                <button
-                  onClick={() => setMode("file")}
-                  className={`text-sm px-3 py-1.5 rounded border ${mode === "file" ? "bg-black text-white" : "bg-white hover:bg-zinc-100"}`}
-                >
-                  <Upload size={14} className="inline mr-1" /> File
-                </button>
-                <button
-                  onClick={() => setMode("link")}
-                  className={`text-sm px-3 py-1.5 rounded border ${mode === "link" ? "bg-black text-white" : "bg-white hover:bg-zinc-100"}`}
-                >
-                  <LinkIcon size={14} className="inline mr-1" /> External link
-                </button>
-              </div>
+            <div className="px-4 pt-3 pb-4 pb-[env(safe-area-inset-bottom)]">
+              {err && <p className="text-sm text-red-600 dark:text-red-400 mb-2">{err}</p>}
 
-              {err && <p className="text-sm text-red-600 mb-2">{err}</p>}
-
-              <form ref={formRef} onSubmit={submit} className="space-y-3 pb-4">
+              <form ref={formRef} onSubmit={submit} className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium">Title</label>
-                  <input name="title" required className="mt-1 w-full rounded border px-3 py-2" />
+                  <input
+                    name="title"
+                    required
+                    className="mt-1 w-full rounded-md bg-card text-card-foreground border border-border px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium">Description</label>
-                  <textarea name="description" rows={3} className="mt-1 w-full rounded border px-3 py-2" />
+                  <textarea
+                    name="description"
+                    rows={3}
+                    className="mt-1 w-full rounded-md bg-card text-card-foreground border border-border px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium">Kind</label>
-                    <select name="kind" className="mt-1 w-full rounded border px-3 py-2" defaultValue="pdf">
+                    <select
+                      name="kind"
+                      value={kind}
+                      onChange={(e) => setKind(e.target.value as typeof kind)}
+                      className="mt-1 w-full rounded-md bg-card text-card-foreground border border-border px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
                       <option value="pdf">PDF</option>
                       <option value="doc">Doc</option>
                       <option value="sheet">Sheet</option>
@@ -103,30 +129,51 @@ export default function UploadResourceButton() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium">Tags (comma-separated)</label>
-                    <input name="tags" placeholder="e.g. reo, learning" className="mt-1 w-full rounded border px-3 py-2" />
+                    <input
+                      name="tags"
+                      placeholder="e.g. reo, learning"
+                      className="mt-1 w-full rounded-md bg-card text-card-foreground border border-border px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    />
                   </div>
                 </div>
 
-                {mode === "file" ? (
+                {/* Input controlled by KINDS */}
+                {isLink ? (
                   <div>
-                    <label className="block text-sm font-medium">File</label>
-                    <input type="file" name="file" required className="mt-1 w-full rounded border px-3 py-2" />
+                    <label className="block text-sm font-medium">External URL</label>
+                    <input
+                      type="url"
+                      name="externalUrl"
+                      required
+                      placeholder="https://…"
+                      className="mt-1 w-full rounded-md bg-card text-card-foreground border border-border px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    />
                   </div>
                 ) : (
                   <div>
-                    <label className="block text-sm font-medium">External URL</label>
-                    <input type="url" name="externalUrl" required placeholder="https://…" className="mt-1 w-full rounded border px-3 py-2" />
+                    <label className="block text-sm font-medium">File</label>
+                    <input
+                      type="file"
+                      name="file"
+                      required
+                      accept={acceptForKind}
+                      className="mt-1 w-full rounded-md bg-card text-card-foreground border border-border px-3 py-2 file:mr-3 file:rounded file:border-0 file:bg-muted file:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    />
                   </div>
                 )}
 
                 <div className="pt-2 flex items-center justify-end gap-2">
-                  <button type="button" onClick={() => setOpen(false)} className="rounded-md border px-3 py-2 text-sm hover:bg-zinc-100">
+                  <button
+                    type="button"
+                    onClick={() => setOpen(false)}
+                    className="rounded-md border border-border px-3 py-2 text-sm bg-background text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={loading || isPending}
-                    className="rounded-md bg-black text-white px-3 py-2 text-sm hover:bg-black/90 disabled:opacity-50"
+                    className="rounded-md bg-primary text-primary-foreground px-3 py-2 text-sm hover:opacity-90 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >
                     {loading || isPending ? "Saving…" : "Save"}
                   </button>

@@ -87,20 +87,17 @@ export default function ProfileMenuModal({
   const isAdmin = user.role === "ADMIN";
 
   return createPortal(
-    <div className="fixed inset-0 z-[1000]">
-      <div data-overlay="true" className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Account menu"
-        ref={panelRef}
-        className="absolute inset-x-4 sm:inset-x-auto sm:right-6 top-20 sm:top-16 mx-auto sm:mx-0
-                   w-[min(100%,24rem)] rounded-2xl border shadow-2xl overflow-hidden
-                   bg-white text-zinc-900 border-black/10
-                   dark:bg-zinc-900 dark:text-white dark:border-white/15"
-      >
+   <div className="fixed inset-0 z-[1000]">
+  <div data-overlay="true" className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+  <div
+    role="dialog"
+    aria-modal="true"
+    aria-label="Account menu"
+    ref={panelRef}
+    className="absolute inset-x-4 sm:inset-x-auto sm:right-6 top-20 sm:top-16 mx-auto sm:mx-0 menu-panel"
+  >
         {/* Header */}
-        <div className="flex items-center gap-3 px-5 py-4">
+         <div className="flex items-center gap-3 px-5 py-4">
           <Avatar
             customSrc={user.image || ""}                 // your DB avatar (/api/files/:id)
             providerSrc={session?.user?.image || ""}     // provider avatar (google/github)
@@ -119,34 +116,34 @@ export default function ProfileMenuModal({
           </div>
         </div>
 
-        <div className="h-px bg-black/10 dark:bg-white/10" />
+        <div className="menu-divider" />
 
         {/* Primary links */}
         <nav className="py-1">
           <Link
             href="/me"
-            className="block px-5 py-2.5 text-sm text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-white/10"
+            className="menu-item"
             onClick={onClose}
           >
             My uploads
           </Link>
           <Link
             href="/dashboard"
-            className="block px-5 py-2.5 text-sm text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-white/10"
+            className="menu-item"
             onClick={onClose}
           >
             Upload files
           </Link>
           <Link
             href="/account"
-            className="block px-5 py-2.5 text-sm text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-white/10"
+            className="menu-item"
             onClick={onClose}
           >
             Account
           </Link>
           <Link
             href="/account/family"
-            className="block px-5 py-2.5 text-sm text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-white/10"
+            className="menu-item"
             onClick={onClose}
           >
             Create Member
@@ -156,28 +153,28 @@ export default function ProfileMenuModal({
         {/* Admin section */}
         {isAdmin && (
           <>
-            <div className="h-px bg-black/10 dark:bg-white/10" />
-            <div className="px-5 pt-3 pb-1 text-xs font-medium uppercase tracking-wide text-zinc-600 dark:text-white/60">
+            <div className="menu-divider" />
+            <div className="menu-item">
               Admin
             </div>
             <nav className="pb-2">
               <Link
                 href="/admin/events"
-                className="block px-5 py-2.5 text-sm text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-white/10"
+                className="menu-item"
                 onClick={onClose}
               >
                 Events &amp; Itinerary
               </Link>
               <Link
                 href="/admin/members"
-                className="block px-5 py-2.5 text-sm text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-white/10"
+                className="menu-item"
                 onClick={onClose}
               >
                 Members &amp; Relationships
               </Link>
               <Link
                 href="/family"
-                className="block px-5 py-2.5 text-sm text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-white/10"
+                className="menu-item"
                 onClick={onClose}
               >
                 Family Admin
@@ -186,21 +183,19 @@ export default function ProfileMenuModal({
           </>
         )}
 
-        <div className="h-px bg-black/10 dark:bg-white/10" />
+        <div className="menu-divider" />
 
         {/* Footer buttons */}
         <div className="flex items-center justify-between px-5 py-3">
           <button
             ref={firstBtnRef}
-            className="px-3 py-1.5 rounded-md text-sm font-medium bg-zinc-100 hover:bg-zinc-200 text-zinc-900
-                       dark:bg-white/10 dark:hover:bg-white/15 dark:text-white"
+            className="menu-btn menu-btn--ghost"
             onClick={onClose}
           >
             Close
           </button>
           <button
-            className="px-3 py-1.5 rounded-md text-sm font-medium text-rose-700 hover:bg-rose-50
-                       dark:text-rose-300 dark:hover:bg-white/10"
+            className="menu-btn menu-btn--danger"
             onClick={() => signOut({ callbackUrl: "/" })}
           >
             Sign out

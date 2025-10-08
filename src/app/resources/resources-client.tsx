@@ -53,23 +53,23 @@ export default function ResourcesClient({ initialItems }: { initialItems: Resour
   return (
     <section>
       {/* Controls */}
-      <div className="mb-6 rounded-xl border bg-white/50 backdrop-blur p-4">
+      <div className="mb-6 rounded-xl border border-border bg-card text-card-foreground p-4">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           {/* Search */}
-          <label className="flex items-center gap-2 rounded-lg border px-3 py-2 bg-white">
-            <Search size={16} className="text-zinc-500" />
+        <label className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 bg-card text-card-foreground">
+            <Search size={16} className="text-muted-foreground" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search title, description, tags…"
-              className="outline-none w-64"
+              className="outline-none w-64 bg-transparent text-foreground placeholder:text-muted-foreground"
               aria-label="Search resources"
             />
           </label>
 
           {/* Kind filter */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1 text-xs uppercase text-zinc-500">
+              <span className="inline-flex items-center gap-1 text-xs uppercase text-muted-foreground">
               <Filter size={14} /> Types:
             </span>
             {ALL_KINDS.map(({ key, label }) => {
@@ -78,8 +78,10 @@ export default function ResourcesClient({ initialItems }: { initialItems: Resour
                 <button
                   key={key}
                   onClick={() => toggleKind(key)}
-                  className={`text-xs px-2 py-1 rounded-full border transition ${
-                    on ? "bg-black text-white" : "bg-white hover:bg-zinc-100"
+                 className={`text-xs px-2 py-1 rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                    on
+                      ? "bg-primary text-primary-foreground border-transparent"
+                      : "bg-background text-foreground border-border hover:bg-muted"
                   }`}
                   aria-pressed={on}
                 >
@@ -112,7 +114,7 @@ export default function ResourcesClient({ initialItems }: { initialItems: Resour
           {/* Clear */}
           <button
             onClick={clearFilters}
-            className="inline-flex items-center gap-1 text-xs rounded-md border px-3 py-2 hover:bg-zinc-100"
+className="inline-flex items-center gap-1 text-xs rounded-md border border-border px-3 py-2 bg-background text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             title="Clear filters"
           >
             <X size={14} /> Clear
@@ -122,7 +124,7 @@ export default function ResourcesClient({ initialItems }: { initialItems: Resour
 
       {/* Grid */}
       {visible.length === 0 ? (
-        <p className="text-sm text-zinc-500">No resources match your filters.</p>
+          <p className="text-sm text-muted-foreground">No resources match your filters.</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {visible.map((r) => (
