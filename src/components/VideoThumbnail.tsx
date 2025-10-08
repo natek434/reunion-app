@@ -11,6 +11,7 @@ export default function VideoThumbnail({ id, title }: Props) {
   const [thumbSrc, setThumbSrc] = useState(() => thumbUrl(id, 640, 70));
   const [blurSrc, setBlurSrc] = useState(() => thumbUrl(id, 24, 40)); // tiny blur
   const ref = useRef<HTMLDivElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
     if (!ref.current) return;
@@ -25,6 +26,16 @@ export default function VideoThumbnail({ id, title }: Props) {
     );
     io.observe(ref.current);
     return () => io.disconnect();
+  }, []);
+
+  // On unmount, pause and clear the video source to abort pending requests
+  useEffect(() => {
+    return () => {
+      const v = videoRef.current;
+      if (!v) return;
+      try { v.pause(); } catch {}
+      try { v.removeAttribute("src"); v.load(); } catch {}
+    };
   }, []);
 
   const handleThumbError = () => {
@@ -46,6 +57,7 @@ export default function VideoThumbnail({ id, title }: Props) {
     <div ref={ref} className="relative w-full aspect-video">
       {inView ? (
         <video
+          ref={videoRef}
           className="w-full h-full object-cover"
           src={`/api/files/${encodeURIComponent(id)}/video`}
           poster={poster}
@@ -76,3 +88,4 @@ export default function VideoThumbnail({ id, title }: Props) {
     </div>
   );
 }
+ 
