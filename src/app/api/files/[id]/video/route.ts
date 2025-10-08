@@ -41,8 +41,9 @@ const range = req.headers.get("range");
     const [startStr, endStr] = range.replace("bytes=", "").split("-");
     const start = Math.max(0, parseInt(startStr, 10) || 0);
     const endReq = endStr ? parseInt(endStr, 10) : undefined;
-    const CHUNK = 2 * 1024 * 1024 - 1; // ~2MB default chunk
-    const end = endReq !== undefined ? Math.min(endReq, totalSize - 1) : Math.min(start + CHUNK, totalSize - 1);
+    // If the client requests an open-ended range (e.g., bytes=0-), stream to EOF.
+    // Otherwise, honor their explicit end but clamp to file size.
+    const end = endReq !== undefined ? Math.min(endReq, totalSize - 1) : (totalSize - 1);
     // Reject unsatisfiable range
     if (start >= totalSize) {
       return new Response(null, {
